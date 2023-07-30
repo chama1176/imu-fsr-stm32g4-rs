@@ -73,7 +73,7 @@ fn main() -> ! {
     let mut cnt = 0;
     let mut adc_data_fir: [u16; 4] = [0; 4];
     loop {
-        t = perip.TIM3.cnt.read().cnt().bits();
+        t = perip.TIM3.cnt.read().cnt().bits(); // 0.1ms
         if t.wrapping_sub(prev) > 50 {
             for i in 0..4 {
                 adc_data_fir[i] = (adc_data_fir[i] as f32 * 0.9 + adc_data[i] as f32 * 0.1) as u16;

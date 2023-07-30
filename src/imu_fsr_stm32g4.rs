@@ -11,6 +11,7 @@ use core::fmt::{self, Write};
 #[allow(unused_imports)]
 use cortex_m_semihosting::hprintln;
 
+// 👺要修正
 pub struct Uart1<'a> {
     perip: &'a Peripherals,
 }
@@ -132,6 +133,81 @@ impl<'a> Uart3<'a> {
     }
 }
 
+pub struct SPI2<'a> {
+    perip: &'a Peripherals,
+}
+
+// impl<'a> Write for Uart1<'a> {
+//     fn write_str(&mut self, s: &str) -> fmt::Result {
+//         for c in s.bytes() {
+//             self.putc(c);
+//         }
+//         Ok(())
+//     }
+// }
+
+impl<'a> SPI2<'a> {
+    pub fn new(perip: &'a Peripherals) -> Self {
+        // GPIOポートの電源投入(クロックの有効化)
+        perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
+
+        perip.RCC.apb1enr1.modify(|_, w| w.spi2en().enabled());
+
+        // gpioモード変更
+        let gpiob = &perip.GPIOB;
+        // gpiob.moder.modify(|_, w| w.moder12().alternate());  // CS pin
+        gpiob.moder.modify(|_, w| w.moder13().alternate());
+        gpiob.moder.modify(|_, w| w.moder14().alternate());
+        gpiob.moder.modify(|_, w| w.moder15().alternate());
+        // gpiob.afrh.modify(|_, w| w.afrh12().af5());  // CS pin
+        gpiob.afrh.modify(|_, w| w.afrh13().af5());
+        gpiob.afrh.modify(|_, w| w.afrh14().af5());
+        gpiob.afrh.modify(|_, w| w.afrh15().af5());
+
+        let spi = &perip.SPI2;
+        // Disable SPI
+        spi.cr1.modify(|_, w| w.spe().clear_bit());
+
+        // Set Baudrate
+        spi.cr1.modify(|_, w| unsafe { w.br().bits(0b111) }); // f_pclk / 256
+
+        // Set Clock polarity
+        spi.cr1.modify(|_, w| w.cpol().set_bit()); // idle high
+
+        // Set Clock phase
+        spi.cr1.modify(|_, w| w.cpha().set_bit()); // second edge(rising edge incase idle is high)
+
+        // Bidirectional data mode enable(half-duplex communication)
+        spi.cr1.modify(|_, w| w.bidimode().clear_bit());
+        // Set MSL LSB first
+        spi.cr1.modify(|_, w| w.lsbfirst().clear_bit());
+        // Set NSS management
+        // Soft ware slave management
+        spi.cr1.modify(|_, w| w.ssm().clear_bit());
+        // Internal slave select
+        spi.cr1.modify(|_, w| w.ssi().clear_bit());
+        // Master configuration
+        spi.cr1.modify(|_, w| w.mstr().set_bit());
+
+        // Data size
+        spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b111) }); // 8bit
+                                                              // SS output
+        spi.cr2.modify(|_, w| w.ssoe().clear_bit());
+        // Frame format
+        spi.cr2.modify(|_, w| w.frf().clear_bit()); // Motorola mode
+                                                    // NSS pulse management
+        spi.cr2.modify(|_, w| w.nssp().set_bit());
+        //
+
+        Self { perip }
+    }
+    fn tx(&self, c: u8) {
+        let spi = &self.perip.SPI2;
+        spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
+        while spi.sr.read().bsy().bit_is_set() {}
+    }
+}
+
 pub fn clock_init(perip: &Peripherals) {
     perip.RCC.cr.modify(|_, w| w.hsebyp().bypassed());
     perip.RCC.cr.modify(|_, w| w.hseon().on());
@@ -174,13 +250,13 @@ pub fn clock_init(perip: &Peripherals) {
 
     let tim3 = &perip.TIM3;
     // tim3.psc.modify(|_, w| unsafe { w.bits(170 - 1) });
-    tim3.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) });
-    // tim3.arr.modify(|_, w| unsafe { w.bits(1000 - 1) });    // 1kHz
+    tim3.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) }); // 14_000?
+                                                           // tim3.arr.modify(|_, w| unsafe { w.bits(1000 - 1) });    // 1kHz
     tim3.dier.modify(|_, w| w.uie().set_bit());
     tim3.cr1.modify(|_, w| w.cen().set_bit());
 
     let tim6 = &perip.TIM6;
-    tim6.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) });
+    tim6.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) }); // 14_000?
     tim6.arr.modify(|_, w| unsafe { w.bits(1000 - 1) }); // 1kHz
     tim6.dier.modify(|_, w| w.uie().set_bit());
     tim6.cr2.modify(|_, w| unsafe { w.mms().bits(0b010) });
