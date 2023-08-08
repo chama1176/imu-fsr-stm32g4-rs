@@ -156,6 +156,7 @@ impl<'a> SPI2<'a> {
         // gpioモード変更
         let gpiob = &perip.GPIOB;
         // gpiob.moder.modify(|_, w| w.moder12().alternate());  // CS pin
+        gpiob.moder.modify(|_, w| w.moder12().output());
         gpiob.moder.modify(|_, w| w.moder13().alternate());
         gpiob.moder.modify(|_, w| w.moder14().alternate());
         gpiob.moder.modify(|_, w| w.moder15().alternate());
@@ -175,7 +176,7 @@ impl<'a> SPI2<'a> {
         spi.cr1.modify(|_, w| w.cpol().set_bit()); // idle high
 
         // Set Clock phase
-        spi.cr1.modify(|_, w| w.cpha().set_bit()); // second edge(rising edge incase idle is high)
+        spi.cr1.modify(|_, w| w.cpha().set_bit()); // second edge(rising edge in-case idle is high)
 
         // Bidirectional data mode enable(half-duplex communication)
         spi.cr1.modify(|_, w| w.bidimode().clear_bit());
@@ -191,13 +192,16 @@ impl<'a> SPI2<'a> {
 
         // Data size
         spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b111) }); // 8bit
-                                                              // SS output
+
+        // SS output
         spi.cr2.modify(|_, w| w.ssoe().clear_bit());
         // Frame format
         spi.cr2.modify(|_, w| w.frf().clear_bit()); // Motorola mode
-                                                    // NSS pulse management
+
+        // NSS pulse management
         spi.cr2.modify(|_, w| w.nssp().set_bit());
         //
+        spi.cr1.modify(|_, w| w.spe().set_bit());
 
         Self { perip }
     }
@@ -206,6 +210,13 @@ impl<'a> SPI2<'a> {
         spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
         while spi.sr.read().bsy().bit_is_set() {}
     }
+    pub fn txrx(&self, c: u8) {
+        let spi = &self.perip.SPI2;
+        spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
+        while spi.sr.read().bsy().bit_is_set() {}
+        hprintln!("dr: {}", spi.dr.read().dr().bits()).unwrap();
+    }
+
 }
 
 pub fn clock_init(perip: &Peripherals) {

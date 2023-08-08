@@ -64,6 +64,7 @@ fn main() -> ! {
     imu_fsr_stm32g4::dma_init(&perip, &mut core_perip, dma_buf_addr);
     let mut uart = imu_fsr_stm32g4::Uart3::new(&perip);
     imu_fsr_stm32g4::dma_adc2_start(&perip);
+    let spi = imu_fsr_stm32g4::SPI2::new(&perip);
 
     // let potensio0 = imu_fsr_stm32g4::Potensio0::new(&perip);
 
@@ -82,6 +83,9 @@ fn main() -> ! {
             // hprintln!("t: {}", t).unwrap();
             if cnt > 100 {
                 app.periodic_task();
+
+                spi.txrx(0x75 & 0b1000000);
+                spi.txrx(0x00 & 0b1000000);
 
                 // uart.write_str("hello ");
                 // write!(uart, "{} + {} = {}\r\n", 2, 4, 2+4);
