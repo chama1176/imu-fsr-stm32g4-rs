@@ -84,10 +84,10 @@ fn main() -> ! {
             if cnt > 100 {
                 app.periodic_task();
 
-                spi.txrx(0x1F1F | 0b0000_0000);
-                spi.txrx(0x75 | 0b1000_0000);
-                spi.txrx(0x0F | 0b1000_0000);
-                spi.txrx(0x10 | 0b1000_0000);
+                spi.txrx(0x1F1F | 0b0000_0000); // enable
+                spi.txrx(0x75 | 0b1000_0000);   // who am i
+                spi.txrx(0x0F | 0b1000_0000);   // accel z
+                spi.txrx(0x10 | 0b1000_0000);   // accel z
                 hprintln!("----").unwrap();
 
                 // uart.write_str("hello ");
