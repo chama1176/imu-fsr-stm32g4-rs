@@ -84,8 +84,11 @@ fn main() -> ! {
             if cnt > 100 {
                 app.periodic_task();
 
-                spi.txrx(0x75 & 0b1000000);
-                spi.txrx(0x00 & 0b1000000);
+                spi.txrx(0x1F1F | 0b0000_0000);
+                spi.txrx(0x75 | 0b1000_0000);
+                spi.txrx(0x0F | 0b1000_0000);
+                spi.txrx(0x10 | 0b1000_0000);
+                hprintln!("----").unwrap();
 
                 // uart.write_str("hello ");
                 // write!(uart, "{} + {} = {}\r\n", 2, 4, 2+4);

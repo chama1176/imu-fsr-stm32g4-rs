@@ -164,13 +164,20 @@ impl<'a> SPI2<'a> {
         gpiob.afrh.modify(|_, w| w.afrh13().af5());
         gpiob.afrh.modify(|_, w| w.afrh14().af5());
         gpiob.afrh.modify(|_, w| w.afrh15().af5());
-
+        gpiob.ospeedr.modify(|_, w| w.ospeedr12().very_high_speed());  // CS pin
+        gpiob.ospeedr.modify(|_, w| w.ospeedr13().very_high_speed());
+        gpiob.ospeedr.modify(|_, w| w.ospeedr14().very_high_speed());
+        gpiob.ospeedr.modify(|_, w| w.ospeedr15().very_high_speed());
+        gpiob.otyper.modify(|_, w| w.ot12().push_pull());  // CS pin
+        gpiob.otyper.modify(|_, w| w.ot13().push_pull());
+        gpiob.otyper.modify(|_, w| w.ot14().push_pull());
+        gpiob.otyper.modify(|_, w| w.ot15().push_pull());
+        
         let spi = &perip.SPI2;
-        // Disable SPI
         spi.cr1.modify(|_, w| w.spe().clear_bit());
 
         // Set Baudrate
-        spi.cr1.modify(|_, w| unsafe { w.br().bits(0b111) }); // f_pclk / 256
+        spi.cr1.modify(|_, w| unsafe { w.br().bits(0b0111) }); // f_pclk / 256
 
         // Set Clock polarity
         spi.cr1.modify(|_, w| w.cpol().set_bit()); // idle high
@@ -184,14 +191,14 @@ impl<'a> SPI2<'a> {
         spi.cr1.modify(|_, w| w.lsbfirst().clear_bit());
         // Set NSS management
         // Soft ware slave management
-        spi.cr1.modify(|_, w| w.ssm().clear_bit());
+        spi.cr1.modify(|_, w| w.ssm().set_bit());
         // Internal slave select
-        spi.cr1.modify(|_, w| w.ssi().clear_bit());
+        spi.cr1.modify(|_, w| w.ssi().set_bit());
         // Master configuration
         spi.cr1.modify(|_, w| w.mstr().set_bit());
 
         // Data size
-        spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b111) }); // 8bit
+        spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b0111) }); // 8bit
 
         // SS output
         spi.cr2.modify(|_, w| w.ssoe().clear_bit());
@@ -210,11 +217,19 @@ impl<'a> SPI2<'a> {
         spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
         while spi.sr.read().bsy().bit_is_set() {}
     }
-    pub fn txrx(&self, c: u8) {
+    pub fn txrx(&self, c: u16) {
+        let gpiob = &self.perip.GPIOB;
+        gpiob.bsrr.write(|w| w.br12().reset());
         let spi = &self.perip.SPI2;
+
+        while spi.sr.read().txe().bit_is_clear() {}
+        // send 8bit data automatically 2 times
         spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
+
         while spi.sr.read().bsy().bit_is_set() {}
-        hprintln!("dr: {}", spi.dr.read().dr().bits()).unwrap();
+        while spi.sr.read().rxne().bit_is_clear() {}
+        gpiob.bsrr.write(|w| w.bs12().set());
+        hprintln!("dr: {:x}", spi.dr.read().dr().bits()).unwrap();
     }
 
 }
