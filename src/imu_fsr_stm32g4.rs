@@ -212,11 +212,6 @@ impl<'a> SPI2<'a> {
 
         Self { perip }
     }
-    fn tx(&self, c: u8) {
-        let spi = &self.perip.SPI2;
-        spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
-        while spi.sr.read().bsy().bit_is_set() {}
-    }
     pub fn txrx(&self, c: u16) {
         let gpiob = &self.perip.GPIOB;
         gpiob.bsrr.write(|w| w.br12().reset());
