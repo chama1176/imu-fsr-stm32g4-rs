@@ -13,6 +13,8 @@ cortex-m-rt = "0.6.10"
 cortex-m-semihosting = "0.3.3"
 panic-halt = "0.2.0"
 
+dynamixel-f-rs = { path = "../dynamixel-f-rs/" }
+
 # stm32g4xx-hal = "0.0.0"
 
 # Uncomment for the panic example.

@@ -66,6 +66,11 @@ fn main() -> ! {
     imu_fsr_stm32g4::dma_adc2_start(&perip);
     let spi = imu_fsr_stm32g4::SPI2::new(&perip);
 
+    let ctd = dynamixel_f_rs::ControlTableData::new();
+    // uart
+    // clock
+    // dxl
+
     // let potensio0 = imu_fsr_stm32g4::Potensio0::new(&perip);
 
     let mut t = perip.TIM3.cnt.read().cnt().bits();

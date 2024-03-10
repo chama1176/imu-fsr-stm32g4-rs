@@ -28,16 +28,18 @@ impl<'a> Write for Uart1<'a> {
 impl<'a> Uart1<'a> {
     pub fn new(perip: &'a Peripherals) -> Self {
         // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
+        perip.RCC.ahb2enr.modify(|_, w| w.gpioaen().set_bit());
 
         perip.RCC.apb2enr.modify(|_, w| w.usart1en().enabled());
 
         // gpioモード変更
-        let gpiob = &perip.GPIOB;
-        gpiob.moder.modify(|_, w| w.moder6().alternate());
-        gpiob.moder.modify(|_, w| w.moder7().alternate());
-        gpiob.afrl.modify(|_, w| w.afrl6().af7());
-        gpiob.afrl.modify(|_, w| w.afrl7().af7());
+        let gpio = &perip.GPIOA;
+        gpio.moder.modify(|_, w| w.moder9().alternate());
+        gpio.moder.modify(|_, w| w.moder10().alternate());
+        gpio.moder.modify(|_, w| w.moder12().alternate());
+        gpio.afrh.modify(|_, w| w.afrh9().af7());
+        gpio.afrh.modify(|_, w| w.afrh10().af7());
+        gpio.afrh.modify(|_, w| w.afrh12().af7());
 
         let uart = &perip.USART1;
         // Set over sampling mode
@@ -53,6 +55,9 @@ impl<'a> Uart1<'a> {
 
         // Set stop bit
         uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
+
+        // RS485 driver enable
+        uart.cr3.modify(|_, w| w.dem().set_bit());
 
         // Set uart enable
         uart.cr1.modify(|_, w| w.ue().set_bit());
