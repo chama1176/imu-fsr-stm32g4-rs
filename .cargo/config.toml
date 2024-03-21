@@ -5,7 +5,9 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 # uncomment ONE of these three option to make `cargo run` start a GDB session
 # which option to pick depends on your system
-runner = "arm-none-eabi-gdb -q -x openocd.gdb"
+# runner = "arm-none-eabi-gdb -q -x openocd.gdb"
+runner = 'probe-rs run --chip STM32G431C6Tx'
+
 # runner = "gdb-multiarch -q -x openocd.gdb"
 # runner = "gdb -q -x openocd.gdb"
 
@@ -27,6 +29,9 @@ rustflags = [
   # "-C", "linker=arm-none-eabi-gcc",
   # "-C", "link-arg=-Wl,-Tlink.x",
   # "-C", "link-arg=-nostartfiles",
+
+  # For defmt
+  "-C", "link-arg=-Tdefmt.x",
 ]
 
 [build]

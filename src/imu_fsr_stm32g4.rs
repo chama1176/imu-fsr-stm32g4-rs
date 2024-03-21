@@ -229,7 +229,7 @@ impl<'a> SPI2<'a> {
         while spi.sr.read().bsy().bit_is_set() {}
         while spi.sr.read().rxne().bit_is_clear() {}
         gpiob.bsrr.write(|w| w.bs12().set());
-        hprintln!("dr: {:x}", spi.dr.read().dr().bits()).unwrap();
+        // hprintln!("dr: {:x}", spi.dr.read().dr().bits()).unwrap();
     }
 
 }
@@ -258,7 +258,7 @@ pub fn clock_init(perip: &Peripherals) {
         .acr
         .modify(|_, w| unsafe { w.latency().bits(4) });
     while perip.FLASH.acr.read().latency().bits() != 4 {
-        hprintln!("latency bit: {}", perip.FLASH.acr.read().latency().bits()).unwrap();
+        // hprintln!("latency bit: {}", perip.FLASH.acr.read().latency().bits()).unwrap();
     }
 
     perip.RCC.cfgr.modify(|_, w| w.sw().pll());

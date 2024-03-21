@@ -6,6 +6,7 @@ use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch
                      // use panic_abort as _; // requires nightly
                      // use panic_itm as _; // logs messages over ITM; requires ITM support
                      // use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
+use defmt_rtt as _;
 
 use core::fmt::Write;
 use cortex_m_rt::entry;
@@ -66,7 +67,7 @@ fn main() -> ! {
     imu_fsr_stm32g4::dma_adc2_start(&perip);
     let spi = imu_fsr_stm32g4::SPI2::new(&perip);
 
-    let ctd = dynamixel_f_rs::ControlTableData::new();
+    // let ctd = dynamixel_f_rs::ControlTableData::new();
     // uart
     // clock
     // dxl
@@ -93,17 +94,18 @@ fn main() -> ! {
                 spi.txrx(0x75 | 0b1000_0000);   // who am i
                 spi.txrx(0x0F | 0b1000_0000);   // accel z
                 spi.txrx(0x10 | 0b1000_0000);   // accel z
-                hprintln!("----").unwrap();
+                // hprintln!("----").unwrap();
+                defmt::error!("hello from defmt");
 
                 // uart.write_str("hello ");
                 // write!(uart, "{} + {} = {}\r\n", 2, 4, 2+4);
-                unsafe {
-                    write!(
-                        uart,
-                        "{{\"FSR\":[{}, {}, {}, {}]}}\r\n",
-                        adc_data_fir[3], adc_data_fir[0], adc_data_fir[1], adc_data_fir[2]
-                    );
-                }
+                // unsafe {
+                //     write!(
+                //         uart,
+                //         "{{\"FSR\":[{}, {}, {}, {}]}}\r\n",
+                //         adc_data_fir[3], adc_data_fir[0], adc_data_fir[1], adc_data_fir[2]
+                //     );
+                // }
                 // write!(uart, "{} \r\n", potensio0.sigle_conversion());
                 cnt = 0;
             }
