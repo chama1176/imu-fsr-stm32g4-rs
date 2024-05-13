@@ -7,6 +7,29 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "preLaunchTask": "${defaultBuildTask}",
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "name": "probe_rs Executable Test",
+            "flashingConfig": {
+                "flashingEnabled": true,
+            },
+            //!MODIFY
+            "chip": "STM32G431C6Tx",
+            "coreConfigs": [
+                {
+                //!MODIFY
+                "programBinary": "${workspaceRoot}\\target\\thumbv7em-none-eabihf\\release\\imu-fsr-stm32g4",
+                "coreIndex": 0,
+                "rttEnabled": true
+                }
+            ],
+            "env": {
+                //!MODIFY: Remove or use any of the supported DEFMT_LOG options.
+                "DEFMT_LOG": "info"
+            }
+        },
+        {
             "type": "cortex-debug",
             "request": "launch",
             "name": "Debug (QEMU)",
@@ -14,7 +37,7 @@
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Cargo Build (debug)",
             "runToMain": true,
-            "executable": "./target/thumbv7m-none-eabi/debug/imu-fsr-stm32g4",
+            "executable": "./target/thumbv7em-none-eabihf/debug/imu-fsr-stm32g4",
             /* Run `cargo build --example hello` and uncomment this line to run semi-hosting example */
             //"executable": "./target/thumbv7m-none-eabi/debug/examples/hello",
             "cpu": "cortex-m3",
