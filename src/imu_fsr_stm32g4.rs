@@ -7,231 +7,16 @@ use stm32g4::stm32g431::Interrupt;
 use stm32g4::stm32g431::Peripherals;
 use stm32g4::stm32g431::NVIC;
 
+use core::cell::RefCell;
 use core::fmt::{self, Write};
-#[allow(unused_imports)]
-use cortex_m_semihosting::hprintln;
 
-// 👺要修正
-pub struct Uart1<'a> {
-    perip: &'a Peripherals,
-}
+use cortex_m::interrupt::{free, Mutex};
 
-impl<'a> Write for Uart1<'a> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for c in s.bytes() {
-            self.putc(c);
-        }
-        Ok(())
-    }
-}
+pub static G_PERIPHERAL: Mutex<RefCell<Option<stm32g4::stm32g431::Peripherals>>> =
+    Mutex::new(RefCell::new(None));
 
-impl<'a> Uart1<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpioaen().set_bit());
-
-        perip.RCC.apb2enr.modify(|_, w| w.usart1en().enabled());
-
-        // gpioモード変更
-        let gpio = &perip.GPIOA;
-        gpio.moder.modify(|_, w| w.moder9().alternate());
-        gpio.moder.modify(|_, w| w.moder10().alternate());
-        gpio.moder.modify(|_, w| w.moder12().alternate());
-        gpio.afrh.modify(|_, w| w.afrh9().af7());
-        gpio.afrh.modify(|_, w| w.afrh10().af7());
-        gpio.afrh.modify(|_, w| w.afrh12().af7());
-
-        let uart = &perip.USART1;
-        // Set over sampling mode
-        uart.cr1.modify(|_, w| w.over8().clear_bit());
-        // Set parity mode
-        uart.cr1.modify(|_, w| w.pce().clear_bit());
-        // Set word length
-        uart.cr1.modify(|_, w| w.m0().clear_bit());
-        uart.cr1.modify(|_, w| w.m1().clear_bit());
-        // FIFO?
-        // Set baud rate
-        uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
-
-        // Set stop bit
-        uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
-
-        // RS485 driver enable
-        uart.cr3.modify(|_, w| w.dem().set_bit());
-
-        // Set uart enable
-        uart.cr1.modify(|_, w| w.ue().set_bit());
-
-        // Set uart recieve enable
-        uart.cr1.modify(|_, w| w.re().set_bit());
-        // Set uart transmitter enable
-        uart.cr1.modify(|_, w| w.te().set_bit());
-
-        Self { perip }
-    }
-    fn putc(&self, c: u8) {
-        let uart = &self.perip.USART1;
-        uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
-        // while uart.isr.read().tc().bit_is_set() {}
-        while uart.isr.read().txe().bit_is_clear() {}
-    }
-}
-
-pub struct Uart3<'a> {
-    perip: &'a Peripherals,
-}
-impl<'a> Write for Uart3<'a> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for c in s.bytes() {
-            self.putc(c);
-        }
-        Ok(())
-    }
-}
-
-impl<'a> Uart3<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
-
-        perip.RCC.apb1enr1.modify(|_, w| w.usart3en().enabled());
-
-        // gpioモード変更
-        let gpiob = &perip.GPIOB;
-        gpiob.moder.modify(|_, w| w.moder8().alternate());
-        gpiob.moder.modify(|_, w| w.moder9().alternate());
-        gpiob.afrh.modify(|_, w| w.afrh8().af7());
-        gpiob.afrh.modify(|_, w| w.afrh9().af7());
-        // ここまでみた
-        let uart = &perip.USART3;
-        // Set over sampling mode
-        uart.cr1.modify(|_, w| w.over8().clear_bit());
-        // Set parity mode
-        uart.cr1.modify(|_, w| w.pce().clear_bit());
-        // Set word length
-        uart.cr1.modify(|_, w| w.m0().clear_bit());
-        uart.cr1.modify(|_, w| w.m1().clear_bit());
-        // FIFO?
-        // Set baud rate
-        uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
-
-        // Set stop bit
-        uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
-        // Set swap
-        uart.cr2.modify(|_, w| w.swap().set_bit());
-
-        // Set uart enable
-        uart.cr1.modify(|_, w| w.ue().set_bit());
-
-        // Set uart recieve enable
-        uart.cr1.modify(|_, w| w.re().set_bit());
-        // Set uart transmitter enable
-        uart.cr1.modify(|_, w| w.te().set_bit());
-
-        Self { perip }
-    }
-    fn putc(&self, c: u8) {
-        let uart = &self.perip.USART3;
-        uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
-        // while uart.isr.read().tc().bit_is_set() {}
-        while uart.isr.read().txe().bit_is_clear() {}
-    }
-}
-
-pub struct SPI2<'a> {
-    perip: &'a Peripherals,
-}
-
-// impl<'a> Write for Uart1<'a> {
-//     fn write_str(&mut self, s: &str) -> fmt::Result {
-//         for c in s.bytes() {
-//             self.putc(c);
-//         }
-//         Ok(())
-//     }
-// }
-
-impl<'a> SPI2<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
-
-        perip.RCC.apb1enr1.modify(|_, w| w.spi2en().enabled());
-
-        // gpioモード変更
-        let gpiob = &perip.GPIOB;
-        // gpiob.moder.modify(|_, w| w.moder12().alternate());  // CS pin
-        gpiob.moder.modify(|_, w| w.moder12().output());
-        gpiob.moder.modify(|_, w| w.moder13().alternate());
-        gpiob.moder.modify(|_, w| w.moder14().alternate());
-        gpiob.moder.modify(|_, w| w.moder15().alternate());
-        // gpiob.afrh.modify(|_, w| w.afrh12().af5());  // CS pin
-        gpiob.afrh.modify(|_, w| w.afrh13().af5());
-        gpiob.afrh.modify(|_, w| w.afrh14().af5());
-        gpiob.afrh.modify(|_, w| w.afrh15().af5());
-        gpiob.ospeedr.modify(|_, w| w.ospeedr12().very_high_speed());  // CS pin
-        gpiob.ospeedr.modify(|_, w| w.ospeedr13().very_high_speed());
-        gpiob.ospeedr.modify(|_, w| w.ospeedr14().very_high_speed());
-        gpiob.ospeedr.modify(|_, w| w.ospeedr15().very_high_speed());
-        gpiob.otyper.modify(|_, w| w.ot12().push_pull());  // CS pin
-        gpiob.otyper.modify(|_, w| w.ot13().push_pull());
-        gpiob.otyper.modify(|_, w| w.ot14().push_pull());
-        gpiob.otyper.modify(|_, w| w.ot15().push_pull());
-        
-        let spi = &perip.SPI2;
-        spi.cr1.modify(|_, w| w.spe().clear_bit());
-
-        // Set Baudrate
-        spi.cr1.modify(|_, w| unsafe { w.br().bits(0b0111) }); // f_pclk / 256
-
-        // Set Clock polarity
-        spi.cr1.modify(|_, w| w.cpol().set_bit()); // idle high
-
-        // Set Clock phase
-        spi.cr1.modify(|_, w| w.cpha().set_bit()); // second edge(rising edge in-case idle is high)
-
-        // Bidirectional data mode enable(half-duplex communication)
-        spi.cr1.modify(|_, w| w.bidimode().clear_bit());
-        // Set MSL LSB first
-        spi.cr1.modify(|_, w| w.lsbfirst().clear_bit());
-        // Set NSS management
-        // Soft ware slave management
-        spi.cr1.modify(|_, w| w.ssm().set_bit());
-        // Internal slave select
-        spi.cr1.modify(|_, w| w.ssi().set_bit());
-        // Master configuration
-        spi.cr1.modify(|_, w| w.mstr().set_bit());
-
-        // Data size
-        spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b0111) }); // 8bit
-
-        // SS output
-        spi.cr2.modify(|_, w| w.ssoe().clear_bit());
-        // Frame format
-        spi.cr2.modify(|_, w| w.frf().clear_bit()); // Motorola mode
-
-        // NSS pulse management
-        spi.cr2.modify(|_, w| w.nssp().set_bit());
-        //
-        spi.cr1.modify(|_, w| w.spe().set_bit());
-
-        Self { perip }
-    }
-    pub fn txrx(&self, c: u16) {
-        let gpiob = &self.perip.GPIOB;
-        gpiob.bsrr.write(|w| w.br12().reset());
-        let spi = &self.perip.SPI2;
-
-        while spi.sr.read().txe().bit_is_clear() {}
-        // send 8bit data automatically 2 times
-        spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
-
-        while spi.sr.read().bsy().bit_is_set() {}
-        while spi.sr.read().rxne().bit_is_clear() {}
-        gpiob.bsrr.write(|w| w.bs12().set());
-        // hprintln!("dr: {:x}", spi.dr.read().dr().bits()).unwrap();
-    }
-
+pub fn init_g_peripheral(perip: Peripherals) {
+    free(|cs| G_PERIPHERAL.borrow(cs).replace(Some(perip)));
 }
 
 pub fn clock_init(perip: &Peripherals) {
@@ -435,136 +220,438 @@ pub fn dma_adc2_start(perip: &Peripherals) {
     adc.cr.modify(|_, w| w.adstart().start()); // ADC start
 }
 
-pub struct Fsr0<'a> {
-    perip: &'a Peripherals,
+// 👺要修正
+// pub struct Uart1 {
+//     perip: &'a Peripherals,
+// }
+
+// impl Write for Uart1 {
+//     fn write_str(&mut self, s: &str) -> fmt::Result {
+//         for c in s.bytes() {
+//             self.putc(c);
+//         }
+//         Ok(())
+//     }
+// }
+
+// impl Uart1 {
+//     pub fn new(perip: &'a Peripherals) -> Self {
+//         // GPIOポートの電源投入(クロックの有効化)
+//         perip.RCC.ahb2enr.modify(|_, w| w.gpioaen().set_bit());
+
+//         perip.RCC.apb2enr.modify(|_, w| w.usart1en().enabled());
+
+//         // gpioモード変更
+//         let gpio = &perip.GPIOA;
+//         gpio.moder.modify(|_, w| w.moder9().alternate());
+//         gpio.moder.modify(|_, w| w.moder10().alternate());
+//         gpio.moder.modify(|_, w| w.moder12().alternate());
+//         gpio.afrh.modify(|_, w| w.afrh9().af7());
+//         gpio.afrh.modify(|_, w| w.afrh10().af7());
+//         gpio.afrh.modify(|_, w| w.afrh12().af7());
+
+//         let uart = &perip.USART1;
+//         // Set over sampling mode
+//         uart.cr1.modify(|_, w| w.over8().clear_bit());
+//         // Set parity mode
+//         uart.cr1.modify(|_, w| w.pce().clear_bit());
+//         // Set word length
+//         uart.cr1.modify(|_, w| w.m0().clear_bit());
+//         uart.cr1.modify(|_, w| w.m1().clear_bit());
+//         // FIFO?
+//         // Set baud rate
+//         uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
+
+//         // Set stop bit
+//         uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
+
+//         // RS485 driver enable
+//         uart.cr3.modify(|_, w| w.dem().set_bit());
+
+//         // Set uart enable
+//         uart.cr1.modify(|_, w| w.ue().set_bit());
+
+//         // Set uart recieve enable
+//         uart.cr1.modify(|_, w| w.re().set_bit());
+//         // Set uart transmitter enable
+//         uart.cr1.modify(|_, w| w.te().set_bit());
+
+//         Self { perip }
+//     }
+//     fn putc(&self, c: u8) {
+//         let uart = perip.USART1;
+//         uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
+//         // while uart.isr.read().tc().bit_is_set() {}
+//         while uart.isr.read().txe().bit_is_clear() {}
+//     }
+// }
+
+pub struct Uart3 {}
+impl Write for Uart3 {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for c in s.bytes() {
+            self.putc(c);
+        }
+        Ok(())
+    }
 }
 
-impl<'a> Fsr for Fsr0<'a> {
+impl Uart3 {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn init() {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                // GPIOポートの電源投入(クロックの有効化)
+                perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
+
+                perip.RCC.apb1enr1.modify(|_, w| w.usart3en().enabled());
+
+                // gpioモード変更
+                let gpiob = &perip.GPIOB;
+                gpiob.moder.modify(|_, w| w.moder8().alternate());
+                gpiob.moder.modify(|_, w| w.moder9().alternate());
+                gpiob.afrh.modify(|_, w| w.afrh8().af7());
+                gpiob.afrh.modify(|_, w| w.afrh9().af7());
+                // ここまでみた
+                let uart = &perip.USART3;
+                // Set over sampling mode
+                uart.cr1.modify(|_, w| w.over8().clear_bit());
+                // Set parity mode
+                uart.cr1.modify(|_, w| w.pce().clear_bit());
+                // Set word length
+                uart.cr1.modify(|_, w| w.m0().clear_bit());
+                uart.cr1.modify(|_, w| w.m1().clear_bit());
+                // FIFO?
+                // Set baud rate
+                uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
+
+                // Set stop bit
+                uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
+                // Set swap
+                uart.cr2.modify(|_, w| w.swap().set_bit());
+
+                // Set uart enable
+                uart.cr1.modify(|_, w| w.ue().set_bit());
+
+                // Set uart recieve enable
+                uart.cr1.modify(|_, w| w.re().set_bit());
+                // Set uart transmitter enable
+                uart.cr1.modify(|_, w| w.te().set_bit());
+            }
+        });
+    }
+    fn putc(&self, c: u8) {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let uart = &perip.USART3;
+                uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
+                // while uart.isr.read().tc().bit_is_set() {}
+                while uart.isr.read().txe().bit_is_clear() {}
+            }
+        });
+    }
+}
+
+pub struct SPI2 {}
+
+impl SPI2 {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn init(&self) {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                // GPIOポートの電源投入(クロックの有効化)
+                perip.RCC.ahb2enr.modify(|_, w| w.gpioben().set_bit());
+
+                perip.RCC.apb1enr1.modify(|_, w| w.spi2en().enabled());
+
+                // gpioモード変更
+                let gpiob = &perip.GPIOB;
+                // gpiob.moder.modify(|_, w| w.moder12().alternate());  // CS pin
+                gpiob.moder.modify(|_, w| w.moder12().output());
+                gpiob.moder.modify(|_, w| w.moder13().alternate());
+                gpiob.moder.modify(|_, w| w.moder14().alternate());
+                gpiob.moder.modify(|_, w| w.moder15().alternate());
+                // gpiob.afrh.modify(|_, w| w.afrh12().af5());  // CS pin
+                gpiob.afrh.modify(|_, w| w.afrh13().af5());
+                gpiob.afrh.modify(|_, w| w.afrh14().af5());
+                gpiob.afrh.modify(|_, w| w.afrh15().af5());
+                gpiob.ospeedr.modify(|_, w| w.ospeedr12().very_high_speed()); // CS pin
+                gpiob.ospeedr.modify(|_, w| w.ospeedr13().very_high_speed());
+                gpiob.ospeedr.modify(|_, w| w.ospeedr14().very_high_speed());
+                gpiob.ospeedr.modify(|_, w| w.ospeedr15().very_high_speed());
+                gpiob.otyper.modify(|_, w| w.ot12().push_pull()); // CS pin
+                gpiob.otyper.modify(|_, w| w.ot13().push_pull());
+                gpiob.otyper.modify(|_, w| w.ot14().push_pull());
+                gpiob.otyper.modify(|_, w| w.ot15().push_pull());
+
+                let spi = &perip.SPI2;
+                spi.cr1.modify(|_, w| w.spe().clear_bit());
+
+                // Set Baudrate
+                spi.cr1.modify(|_, w| unsafe { w.br().bits(0b0111) }); // f_pclk / 256
+
+                // Set Clock polarity
+                spi.cr1.modify(|_, w| w.cpol().set_bit()); // idle high
+
+                // Set Clock phase
+                spi.cr1.modify(|_, w| w.cpha().set_bit()); // second edge(rising edge in-case idle is high)
+
+                // Bidirectional data mode enable(half-duplex communication)
+                spi.cr1.modify(|_, w| w.bidimode().clear_bit());
+                // Set MSL LSB first
+                spi.cr1.modify(|_, w| w.lsbfirst().clear_bit());
+                // Set NSS management
+                // Soft ware slave management
+                spi.cr1.modify(|_, w| w.ssm().set_bit());
+                // Internal slave select
+                spi.cr1.modify(|_, w| w.ssi().set_bit());
+                // Master configuration
+                spi.cr1.modify(|_, w| w.mstr().set_bit());
+
+                // Data size
+                spi.cr2.modify(|_, w| unsafe { w.ds().bits(0b0111) }); // 8bit
+
+                // SS output
+                spi.cr2.modify(|_, w| w.ssoe().clear_bit());
+                // Frame format
+                spi.cr2.modify(|_, w| w.frf().clear_bit()); // Motorola mode
+
+                // NSS pulse management
+                spi.cr2.modify(|_, w| w.nssp().set_bit());
+                //
+                spi.cr1.modify(|_, w| w.spe().set_bit());
+            }
+        });
+    }
+    pub fn txrx(&self, c: u16) {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpiob = &perip.GPIOB;
+                gpiob.bsrr.write(|w| w.br12().reset());
+                let spi = &perip.SPI2;
+
+                while spi.sr.read().txe().bit_is_clear() {}
+                // send 8bit data automatically 2 times
+                spi.dr.modify(|_, w| unsafe { w.dr().bits(c.into()) });
+
+                while spi.sr.read().bsy().bit_is_set() {}
+                while spi.sr.read().rxne().bit_is_clear() {}
+                gpiob.bsrr.write(|w| w.bs12().set());
+                defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
+            }
+        });
+    }
+}
+
+pub struct Fsr0 {}
+
+impl Fsr for Fsr0 {
     fn get_force(&self) -> f32 {
         0.0
     }
 }
 
-impl<'a> Fsr0<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        Self { perip }
+impl Fsr0 {
+    pub fn new() -> Self {
+        Self {}
     }
     pub fn sigle_conversion(&self) -> u16 {
-        let adc = &self.perip.ADC2;
-        adc.cr.modify(|_, w| w.adstart().start()); // ADC start
-        while adc.isr.read().eoc().is_not_complete() {
-            // Wait for ADC complete
-        }
-        adc.isr.modify(|_, w| w.eoc().clear()); // clear eoc flag
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => 0, //TODO change to some
+            Some(perip) => {
+                let adc = &perip.ADC2;
+                adc.cr.modify(|_, w| w.adstart().start()); // ADC start
+                while adc.isr.read().eoc().is_not_complete() {
+                    // Wait for ADC complete
+                }
+                adc.isr.modify(|_, w| w.eoc().clear()); // clear eoc flag
 
-        adc.dr.read().rdata().bits()
+                adc.dr.read().rdata().bits()
+            }
+        })
     }
 }
 
-pub struct Led0<'a> {
-    perip: &'a Peripherals,
-}
+pub struct Led0 {}
 
-impl<'a> Indicator for Led0<'a> {
+impl Indicator for Led0 {
     fn on(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.bs13().set());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.bs13().set());
+            }
+        });
     }
     fn off(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.br13().reset());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.br13().reset());
+            }
+        });
     }
     fn toggle(&self) {
-        let gpioc = &self.perip.GPIOC;
-        if gpioc.odr.read().odr13().is_low() {
-            gpioc.bsrr.write(|w| w.bs13().set());
-        } else {
-            gpioc.bsrr.write(|w| w.br13().reset());
-        }
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                if gpioc.odr.read().odr13().is_low() {
+                    gpioc.bsrr.write(|w| w.bs13().set());
+                } else {
+                    gpioc.bsrr.write(|w| w.br13().reset());
+                }
+            }
+        });
     }
 }
 
-impl<'a> Led0<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
+impl Led0 {
+    pub fn new() -> Self {
+        Self {}
+    }
 
-        // gpioモード変更
-        let gpioc = &perip.GPIOC;
-        gpioc.moder.modify(|_, w| w.moder13().output());
+    pub fn init(&self) {
+        free(|cs| {
+            match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+                None => (),
+                Some(perip) => {
+                    // GPIOポートの電源投入(クロックの有効化)
+                    perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
 
-        Self { perip }
+                    // gpioモード変更
+                    let gpioc = &perip.GPIOC;
+                    gpioc.moder.modify(|_, w| w.moder13().output());
+                }
+            }
+        });
     }
 }
 
-pub struct Led1<'a> {
-    perip: &'a Peripherals,
-}
+pub struct Led1 {}
 
-impl<'a> Indicator for Led1<'a> {
+impl Indicator for Led1 {
     fn on(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.bs14().set());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.bs14().set());
+            }
+        });
     }
     fn off(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.br14().reset());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.br14().reset());
+            }
+        });
     }
     fn toggle(&self) {
-        let gpioc = &self.perip.GPIOC;
-        if gpioc.odr.read().odr14().is_low() {
-            gpioc.bsrr.write(|w| w.bs14().set());
-        } else {
-            gpioc.bsrr.write(|w| w.br14().reset());
-        }
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                if gpioc.odr.read().odr14().is_low() {
+                    gpioc.bsrr.write(|w| w.bs14().set());
+                } else {
+                    gpioc.bsrr.write(|w| w.br14().reset());
+                }
+            }
+        });
     }
 }
 
-impl<'a> Led1<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
+impl Led1 {
+    pub fn new() -> Self {
+        Self {}
+    }
 
-        // gpioモード変更
-        let gpioc = &perip.GPIOC;
-        gpioc.moder.modify(|_, w| w.moder14().output());
+    pub fn init(&self) {
+        free(|cs| {
+            match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+                None => (),
+                Some(perip) => {
+                    // GPIOポートの電源投入(クロックの有効化)
+                    perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
 
-        Self { perip }
+                    // gpioモード変更
+                    let gpioc = &perip.GPIOC;
+                    gpioc.moder.modify(|_, w| w.moder14().output());
+                }
+            }
+        });
     }
 }
 
-pub struct Led2<'a> {
-    perip: &'a Peripherals,
-}
+pub struct Led2 {}
 
-impl<'a> Indicator for Led2<'a> {
+impl Indicator for Led2 {
     fn on(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.bs15().set());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.bs15().set());
+            }
+        });
     }
     fn off(&self) {
-        let gpioc = &self.perip.GPIOC;
-        gpioc.bsrr.write(|w| w.br15().reset());
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                gpioc.bsrr.write(|w| w.br15().reset());
+            }
+        });
     }
     fn toggle(&self) {
-        let gpioc = &self.perip.GPIOC;
-        if gpioc.odr.read().odr15().is_low() {
-            gpioc.bsrr.write(|w| w.bs15().set());
-        } else {
-            gpioc.bsrr.write(|w| w.br15().reset());
-        }
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let gpioc = &perip.GPIOC;
+                if gpioc.odr.read().odr15().is_low() {
+                    gpioc.bsrr.write(|w| w.bs15().set());
+                } else {
+                    gpioc.bsrr.write(|w| w.br15().reset());
+                }
+            }
+        });
     }
 }
 
-impl<'a> Led2<'a> {
-    pub fn new(perip: &'a Peripherals) -> Self {
-        // GPIOポートの電源投入(クロックの有効化)
-        perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
+impl Led2 {
+    pub fn new() -> Self {
+        Self {}
+    }
 
-        // gpioモード変更
-        let gpioc = &perip.GPIOC;
-        gpioc.moder.modify(|_, w| w.moder15().output());
+    pub fn init(&self) {
+        free(|cs| {
+            match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+                None => (),
+                Some(perip) => {
+                    // GPIOポートの電源投入(クロックの有効化)
+                    perip.RCC.ahb2enr.modify(|_, w| w.gpiocen().set_bit());
 
-        Self { perip }
+                    // gpioモード変更
+                    let gpioc = &perip.GPIOC;
+                    gpioc.moder.modify(|_, w| w.moder15().output());
+                }
+            }
+        });
     }
 }

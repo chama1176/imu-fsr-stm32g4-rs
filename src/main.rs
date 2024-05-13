@@ -8,39 +8,25 @@ use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch
                      // use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
 use defmt_rtt as _;
 
+use core::cell::RefCell;
 use core::fmt::Write;
-use cortex_m_rt::entry;
-use cortex_m_semihosting::hprintln;
 
+use cortex_m::interrupt::{free, Mutex};
+use cortex_m_rt::entry;
+
+mod app;
 mod fsr;
 mod imu_fsr_stm32g4;
 mod indicator;
 mod potensio;
 
-mod app {
-    use crate::indicator::Indicator;
+static G_APP: Mutex<
+    RefCell<Option<app::App<imu_fsr_stm32g4::Led0, imu_fsr_stm32g4::Led1, imu_fsr_stm32g4::Led2>>>,
+> = Mutex::new(RefCell::new(None));
 
-    pub struct App<'a> {
-        led0: &'a dyn Indicator,
-        led1: &'a dyn Indicator,
-        led2: &'a dyn Indicator,
-    }
+//　タイマ割り込みでIMU等読み取り[App]
 
-    impl<'a> App<'a> {
-        pub fn new(
-            led0: &'a dyn Indicator,
-            led1: &'a dyn Indicator,
-            led2: &'a dyn Indicator,
-        ) -> Self {
-            Self { led0, led1, led2 }
-        }
-        pub fn periodic_task(&self) {
-            self.led0.toggle();
-            self.led1.toggle();
-            self.led2.toggle();
-        }
-    }
-}
+// 受信割り込みでuart処理[これもApp内でおこなう]
 
 // static adc_data:[u16; 4] = [7; 4];
 
@@ -52,27 +38,28 @@ fn main() -> ! {
     // stm32f401モジュールより、ペリフェラルの入り口となるオブジェクトを取得する。
     let perip = stm32g431::Peripherals::take().unwrap();
     let mut core_perip = stm32g431::CorePeripherals::take().unwrap();
-    let led0 = imu_fsr_stm32g4::Led0::new(&perip);
-    let led1 = imu_fsr_stm32g4::Led1::new(&perip);
-    let led2 = imu_fsr_stm32g4::Led2::new(&perip);
 
-    let app = app::App::new(&led0, &led1, &led2);
     imu_fsr_stm32g4::clock_init(&perip);
     imu_fsr_stm32g4::adc2_init(&perip);
 
     let adc_data: [u16; 4] = [7; 4];
     let dma_buf_addr: u32 = adc_data.as_ptr() as u32;
     imu_fsr_stm32g4::dma_init(&perip, &mut core_perip, dma_buf_addr);
-    let mut uart = imu_fsr_stm32g4::Uart3::new(&perip);
     imu_fsr_stm32g4::dma_adc2_start(&perip);
-    let spi = imu_fsr_stm32g4::SPI2::new(&perip);
 
-    // let ctd = dynamixel_f_rs::ControlTableData::new();
+    let led0 = imu_fsr_stm32g4::Led0::new();
+    let led1 = imu_fsr_stm32g4::Led1::new();
+    let led2 = imu_fsr_stm32g4::Led2::new();
+
+    let app = app::App::new(led0, led1, led2);
+
+    let mut uart = imu_fsr_stm32g4::Uart3::new();
+    let spi = imu_fsr_stm32g4::SPI2::new();
+
+    let ctd = dynamixel_f_rs::ControlTableData::new();
     // uart
     // clock
     // dxl
-
-    // let potensio0 = imu_fsr_stm32g4::Potensio0::new(&perip);
 
     let mut t = perip.TIM3.cnt.read().cnt().bits();
     let mut prev = t;
@@ -91,11 +78,21 @@ fn main() -> ! {
                 app.periodic_task();
 
                 spi.txrx(0x1F1F | 0b0000_0000); // enable
-                spi.txrx(0x75 | 0b1000_0000);   // who am i
-                spi.txrx(0x0F | 0b1000_0000);   // accel z
-                spi.txrx(0x10 | 0b1000_0000);   // accel z
-                // hprintln!("----").unwrap();
-                defmt::error!("hello from defmt");
+                spi.txrx(0x75 | 0b1000_0000); // who am i
+                spi.txrx(0x0F | 0b1000_0000); // accel z
+                spi.txrx(0x10 | 0b1000_0000); // accel z
+                                              // hprintln!("----").unwrap();
+                defmt::error!("error from defmt");
+                defmt::warn!("warn from defmt");
+                defmt::info!("info from defmt");
+
+                defmt::info!(
+                    "{{\"FSR\":[{}, {}, {}, {}]}}\r\n",
+                    adc_data_fir[3],
+                    adc_data_fir[0],
+                    adc_data_fir[1],
+                    adc_data_fir[2]
+                );
 
                 // uart.write_str("hello ");
                 // write!(uart, "{} + {} = {}\r\n", 2, 4, 2+4);
@@ -106,11 +103,9 @@ fn main() -> ! {
                 //         adc_data_fir[3], adc_data_fir[0], adc_data_fir[1], adc_data_fir[2]
                 //     );
                 // }
-                // write!(uart, "{} \r\n", potensio0.sigle_conversion());
                 cnt = 0;
             }
             prev = t;
-            // hprintln!("next: {}", last_t.wrapping_add(1000)).unwrap();
         }
     }
 }

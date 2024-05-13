@@ -148,15 +148,12 @@ perip.FLASH.optr.modify(|_, w| w.n_boot0().set_bit());
 
 ## How to Run 
 
-Run command below.
+In windows powershell,
+
+```shell
+$env:DEFMT_LOG="info"
+cargo run -r
 ```
-openocd
-```
-And, another terminal 
-```
-cargo run
-```
-These command run openocd and connect to that, with gdb debugger.
 
 ## Memo
-- 
+- `cargo size --bin imu-fsr-stm32g4 --release -- -A`
