@@ -301,7 +301,7 @@ impl Uart3 {
         Self {}
     }
 
-    pub fn init() {
+    pub fn init(&self) {
         free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
             None => (),
             Some(perip) => {

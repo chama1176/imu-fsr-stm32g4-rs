@@ -10,6 +10,7 @@ use defmt_rtt as _;
 
 use core::cell::RefCell;
 use core::fmt::Write;
+use core::ops::DerefMut;
 
 use cortex_m::interrupt::{free, Mutex};
 use cortex_m_rt::entry;
@@ -47,27 +48,52 @@ fn main() -> ! {
     imu_fsr_stm32g4::dma_init(&perip, &mut core_perip, dma_buf_addr);
     imu_fsr_stm32g4::dma_adc2_start(&perip);
 
+    // init g peripheral
+    imu_fsr_stm32g4::init_g_peripheral(perip);
+
     let led0 = imu_fsr_stm32g4::Led0::new();
+    led0.init();
     let led1 = imu_fsr_stm32g4::Led1::new();
+    led1.init();
     let led2 = imu_fsr_stm32g4::Led2::new();
+    led2.init();
 
     let app = app::App::new(led0, led1, led2);
+    free(|cs| G_APP.borrow(cs).replace(Some(app)));
 
-    let mut uart = imu_fsr_stm32g4::Uart3::new();
+    let uart = imu_fsr_stm32g4::Uart3::new();
+    uart.init();
     let spi = imu_fsr_stm32g4::SPI2::new();
+    spi.init();
 
     let ctd = dynamixel_f_rs::ControlTableData::new();
     // uart
     // clock
     // dxl
 
-    let mut t = perip.TIM3.cnt.read().cnt().bits();
+    let mut t = 0;
+    free(
+        |cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                t = perip.TIM3.cnt.read().cnt().bits();
+            }
+        },
+    );
     let mut prev = t;
     // hprintln!("t: {}", t).unwrap();
     let mut cnt = 0;
     let mut adc_data_fir: [u16; 4] = [0; 4];
     loop {
-        t = perip.TIM3.cnt.read().cnt().bits(); // 0.1ms
+        free(
+            |cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+                None => (),
+                Some(perip) => {
+                    t = perip.TIM3.cnt.read().cnt().bits();
+                }
+            },
+        );
+
         if t.wrapping_sub(prev) > 50 {
             for i in 0..4 {
                 adc_data_fir[i] = (adc_data_fir[i] as f32 * 0.9 + adc_data[i] as f32 * 0.1) as u16;
@@ -75,7 +101,13 @@ fn main() -> ! {
             cnt += 1;
             // hprintln!("t: {}", t).unwrap();
             if cnt > 100 {
-                app.periodic_task();
+                free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+                    None => (),
+                    Some(app) => {
+                        app.periodic_task();
+                        defmt::info!("toggle!!!");
+                    }
+                });
 
                 spi.txrx(0x1F1F | 0b0000_0000); // enable
                 spi.txrx(0x75 | 0b1000_0000); // who am i
