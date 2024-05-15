@@ -43,16 +43,16 @@ pub fn clock_init(perip: &Peripherals) {
         .acr
         .modify(|_, w| unsafe { w.latency().bits(4) });
     while perip.FLASH.acr.read().latency().bits() != 4 {
-        // hprintln!("latency bit: {}", perip.FLASH.acr.read().latency().bits()).unwrap();
+        defmt::info!("latency bit: {}", perip.FLASH.acr.read().latency().bits());
     }
 
     perip.RCC.cfgr.modify(|_, w| w.sw().pll());
     // perip.RCC.cfgr.modify(|_, w| w.sw().hse());
-    // hprintln!("sw bit: {}", perip.RCC.cfgr.read().sw().bits()).unwrap();
+    defmt::info!("sw bit: {}", perip.RCC.cfgr.read().sw().bits());
     while !perip.RCC.cfgr.read().sw().is_pll() {}
     while !perip.RCC.cfgr.read().sws().is_pll() {
-        // hprintln!("sw bit: {}", perip.RCC.cfgr.read().sw().bits()).unwrap();
-        // hprintln!("sws bit: {}", perip.RCC.cfgr.read().sws().bits()).unwrap();
+        defmt::info!("sw bit: {}", perip.RCC.cfgr.read().sw().bits());
+        defmt::info!("sws bit: {}", perip.RCC.cfgr.read().sws().bits());
     }
     // while !perip.RCC.cfgr.read().sws().is_hse() {}
 

@@ -35,7 +35,7 @@ static G_APP: Mutex<
 fn main() -> ! {
     use stm32g4::stm32g431;
 
-    // hprintln!("Hello, STM32G4!").unwrap();
+    defmt::info!("Hello from STM32G4!");
     // stm32f401モジュールより、ペリフェラルの入り口となるオブジェクトを取得する。
     let perip = stm32g431::Peripherals::take().unwrap();
     let mut core_perip = stm32g431::CorePeripherals::take().unwrap();
@@ -81,7 +81,6 @@ fn main() -> ! {
         },
     );
     let mut prev = t;
-    // hprintln!("t: {}", t).unwrap();
     let mut cnt = 0;
     let mut adc_data_fir: [u16; 4] = [0; 4];
     loop {
@@ -99,13 +98,11 @@ fn main() -> ! {
                 adc_data_fir[i] = (adc_data_fir[i] as f32 * 0.9 + adc_data[i] as f32 * 0.1) as u16;
             }
             cnt += 1;
-            // hprintln!("t: {}", t).unwrap();
             if cnt > 100 {
                 free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
                     None => (),
                     Some(app) => {
                         app.periodic_task();
-                        defmt::info!("toggle!!!");
                     }
                 });
 
@@ -113,13 +110,12 @@ fn main() -> ! {
                 spi.txrx(0x75 | 0b1000_0000); // who am i
                 spi.txrx(0x0F | 0b1000_0000); // accel z
                 spi.txrx(0x10 | 0b1000_0000); // accel z
-                                              // hprintln!("----").unwrap();
                 defmt::error!("error from defmt");
                 defmt::warn!("warn from defmt");
                 defmt::info!("info from defmt");
 
                 defmt::info!(
-                    "{{\"FSR\":[{}, {}, {}, {}]}}\r\n",
+                    "{{\"FSR\":[{}, {}, {}, {}]}}",
                     adc_data_fir[3],
                     adc_data_fir[0],
                     adc_data_fir[1],
