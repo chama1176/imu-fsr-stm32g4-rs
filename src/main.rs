@@ -26,6 +26,7 @@ static G_APP: Mutex<
 > = Mutex::new(RefCell::new(None));
 
 //　タイマ割り込みでIMU等読み取り[App]
+// FSRのADC結果を即時反映するためにはDMA完了割り込みがよさそう？
 
 // 受信割り込みでuart処理[これもApp内でおこなう]
 
@@ -57,14 +58,14 @@ fn main() -> ! {
     led1.init();
     let led2 = imu_fsr_stm32g4::Led2::new();
     led2.init();
-
-    let app = app::App::new(led0, led1, led2);
-    free(|cs| G_APP.borrow(cs).replace(Some(app)));
-
     let uart = imu_fsr_stm32g4::Uart3::new();
     uart.init();
     let spi = imu_fsr_stm32g4::SPI2::new();
     spi.init();
+
+    let app = app::App::new(led0, led1, led2, uart, spi);
+    free(|cs| G_APP.borrow(cs).replace(Some(app)));
+
 
     let ctd = dynamixel_f_rs::ControlTableData::new();
     // uart
@@ -103,13 +104,11 @@ fn main() -> ! {
                     None => (),
                     Some(app) => {
                         app.periodic_task();
+                        app.read_imu_task();
                     }
                 });
 
-                spi.txrx(0x1F1F | 0b0000_0000); // enable
-                spi.txrx(0x75 | 0b1000_0000); // who am i
-                spi.txrx(0x0F | 0b1000_0000); // accel z
-                spi.txrx(0x10 | 0b1000_0000); // accel z
+                
                 defmt::error!("error from defmt");
                 defmt::warn!("warn from defmt");
                 defmt::info!("info from defmt");
