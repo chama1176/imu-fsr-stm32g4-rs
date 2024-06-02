@@ -9,8 +9,8 @@ where
     led0: T0,
     led1: T1,
     led2: T2,
-    uart: Uart3,    // TODO: interfaceを整理
-    spi: SPI2,    // TODO: interfaceを整理
+    uart: Uart3, // TODO: interfaceを整理
+    spi: SPI2,   // TODO: interfaceを整理
 }
 
 impl<T0, T1, T2> App<T0, T1, T2>
@@ -33,18 +33,12 @@ where
         self.led1.toggle();
         self.led2.toggle();
     }
-    pub fn read_imu_task(&self){
-
+    pub fn read_imu_task(&self) {
         self.spi.txrx(0x1F1F | 0b0000_0000); // enable
         self.spi.txrx(0x75 | 0b1000_0000); // who am i
         self.spi.txrx(0x0F | 0b1000_0000); // accel z
         self.spi.txrx(0x10 | 0b1000_0000); // accel z
-
     }
-    pub fn update_fsr_task(&self){
-
-    }
-    pub fn parse_uart_task(&self){
-        
-    }
+    pub fn update_fsr_task(&self) {}
+    pub fn parse_uart_task(&self) {}
 }

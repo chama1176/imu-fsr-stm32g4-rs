@@ -1,14 +1,19 @@
+// interfaces
 use crate::fsr::Fsr;
 use crate::indicator::Indicator;
 use crate::potensio::Potensio;
+use dynamixel_f_rs::Clock;
+use dynamixel_f_rs::Interface;
+
+//
+use core::cell::RefCell;
+use core::fmt::{self, Write};
+use core::time::Duration;
 
 use stm32g4::stm32g431::CorePeripherals;
 use stm32g4::stm32g431::Interrupt;
 use stm32g4::stm32g431::Peripherals;
 use stm32g4::stm32g431::NVIC;
-
-use core::cell::RefCell;
-use core::fmt::{self, Write};
 
 use cortex_m::interrupt::{free, Mutex};
 
@@ -220,71 +225,99 @@ pub fn dma_adc2_start(perip: &Peripherals) {
     adc.cr.modify(|_, w| w.adstart().start()); // ADC start
 }
 
-// 👺要修正
-// pub struct Uart1 {
-//     perip: &'a Peripherals,
-// }
+pub struct LocalClock {}
 
-// impl Write for Uart1 {
-//     fn write_str(&mut self, s: &str) -> fmt::Result {
-//         for c in s.bytes() {
-//             self.putc(c);
-//         }
-//         Ok(())
-//     }
-// }
+impl dynamixel_f_rs::Clock for LocalClock {
+    fn get_current_time(&self) -> Duration {
+        Duration::from_micros(0)
+    }
+}
 
-// impl Uart1 {
-//     pub fn new(perip: &'a Peripherals) -> Self {
-//         // GPIOポートの電源投入(クロックの有効化)
-//         perip.RCC.ahb2enr.modify(|_, w| w.gpioaen().set_bit());
+impl LocalClock {
+    pub fn new() -> Self {
+        Self {}
+    }
 
-//         perip.RCC.apb2enr.modify(|_, w| w.usart1en().enabled());
+    pub fn init(&self) {}
+}
 
-//         // gpioモード変更
-//         let gpio = &perip.GPIOA;
-//         gpio.moder.modify(|_, w| w.moder9().alternate());
-//         gpio.moder.modify(|_, w| w.moder10().alternate());
-//         gpio.moder.modify(|_, w| w.moder12().alternate());
-//         gpio.afrh.modify(|_, w| w.afrh9().af7());
-//         gpio.afrh.modify(|_, w| w.afrh10().af7());
-//         gpio.afrh.modify(|_, w| w.afrh12().af7());
+pub struct Uart1 {}
 
-//         let uart = &perip.USART1;
-//         // Set over sampling mode
-//         uart.cr1.modify(|_, w| w.over8().clear_bit());
-//         // Set parity mode
-//         uart.cr1.modify(|_, w| w.pce().clear_bit());
-//         // Set word length
-//         uart.cr1.modify(|_, w| w.m0().clear_bit());
-//         uart.cr1.modify(|_, w| w.m1().clear_bit());
-//         // FIFO?
-//         // Set baud rate
-//         uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
+impl dynamixel_f_rs::Interface for Uart1 {
+    fn write_byte(&mut self, data: u8) {}
+    fn write_bytes(&mut self, data: &[u8]) {}
+    fn read_byte(&mut self) -> Option<u8> {
+        Some(0)
+    }
+    fn read_bytes(&mut self, buf: &mut [u8]) -> Option<usize> {
+        Some(0)
+    }
+    fn clear_read_buf(&mut self) {}
+}
 
-//         // Set stop bit
-//         uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
+impl Uart1 {
+    pub fn new() -> Self {
+        Self {}
+    }
 
-//         // RS485 driver enable
-//         uart.cr3.modify(|_, w| w.dem().set_bit());
+    pub fn init(&self) {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                // GPIOポートの電源投入(クロックの有効化)
+                perip.RCC.ahb2enr.modify(|_, w| w.gpioaen().set_bit());
 
-//         // Set uart enable
-//         uart.cr1.modify(|_, w| w.ue().set_bit());
+                perip.RCC.apb2enr.modify(|_, w| w.usart1en().enabled());
 
-//         // Set uart recieve enable
-//         uart.cr1.modify(|_, w| w.re().set_bit());
-//         // Set uart transmitter enable
-//         uart.cr1.modify(|_, w| w.te().set_bit());
+                // gpioモード変更
+                let gpio = &perip.GPIOA;
+                gpio.moder.modify(|_, w| w.moder9().alternate());
+                gpio.moder.modify(|_, w| w.moder10().alternate());
+                gpio.moder.modify(|_, w| w.moder12().alternate());
+                gpio.afrh.modify(|_, w| w.afrh9().af7());
+                gpio.afrh.modify(|_, w| w.afrh10().af7());
+                gpio.afrh.modify(|_, w| w.afrh12().af7());
 
-//         Self { perip }
-//     }
-//     fn putc(&self, c: u8) {
-//         let uart = perip.USART1;
-//         uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
-//         // while uart.isr.read().tc().bit_is_set() {}
-//         while uart.isr.read().txe().bit_is_clear() {}
-//     }
-// }
+                let uart = &perip.USART1;
+                // Set over sampling mode
+                uart.cr1.modify(|_, w| w.over8().clear_bit());
+                // Set parity mode
+                uart.cr1.modify(|_, w| w.pce().clear_bit());
+                // Set word length
+                uart.cr1.modify(|_, w| w.m0().clear_bit());
+                uart.cr1.modify(|_, w| w.m1().clear_bit());
+                // FIFO?
+                // Set baud rate
+                uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
+
+                // Set stop bit
+                uart.cr2.modify(|_, w| unsafe { w.stop().bits(0b00) });
+
+                // RS485 driver enable
+                uart.cr3.modify(|_, w| w.dem().set_bit());
+
+                // Set uart enable
+                uart.cr1.modify(|_, w| w.ue().set_bit());
+
+                // Set uart recieve enable
+                uart.cr1.modify(|_, w| w.re().set_bit());
+                // Set uart transmitter enable
+                uart.cr1.modify(|_, w| w.te().set_bit());
+            }
+        });
+    }
+    fn putc(&self, c: u8) {
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let uart = &perip.USART1;
+                uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
+                // while uart.isr.read().tc().bit_is_set() {}
+                while uart.isr.read().txe().bit_is_clear() {}
+            }
+        });
+    }
+}
 
 pub struct Uart3 {}
 impl Write for Uart3 {

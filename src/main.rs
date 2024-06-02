@@ -60,17 +60,19 @@ fn main() -> ! {
     led2.init();
     let uart = imu_fsr_stm32g4::Uart3::new();
     uart.init();
+    let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
+    uart_rs854.init();
     let spi = imu_fsr_stm32g4::SPI2::new();
     spi.init();
+    let clock = imu_fsr_stm32g4::LocalClock::new();
+    clock.init();
+
+    let ctd = dynamixel_f_rs::ControlTableData::new();
+    let dxl_f =
+        dynamixel_f_rs::DynamixelProtocolHandler::new(&mut uart_rs854, &clock, 4_000_000, &ctd);
 
     let app = app::App::new(led0, led1, led2, uart, spi);
     free(|cs| G_APP.borrow(cs).replace(Some(app)));
-
-
-    let ctd = dynamixel_f_rs::ControlTableData::new();
-    // uart
-    // clock
-    // dxl
 
     let mut t = 0;
     free(
@@ -108,7 +110,6 @@ fn main() -> ! {
                     }
                 });
 
-                
                 defmt::error!("error from defmt");
                 defmt::warn!("warn from defmt");
                 defmt::info!("info from defmt");
