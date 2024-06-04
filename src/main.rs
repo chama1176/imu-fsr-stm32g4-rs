@@ -22,7 +22,7 @@ mod indicator;
 mod potensio;
 
 static G_APP: Mutex<
-    RefCell<Option<app::App<imu_fsr_stm32g4::Led0, imu_fsr_stm32g4::Led1, imu_fsr_stm32g4::Led2>>>,
+    RefCell<Option<app::App<imu_fsr_stm32g4::Led0, imu_fsr_stm32g4::Led1, imu_fsr_stm32g4::Led2, imu_fsr_stm32g4::Uart1, imu_fsr_stm32g4::LocalClock>>>,
 > = Mutex::new(RefCell::new(None));
 
 //　タイマ割り込みでIMU等読み取り[App]
@@ -60,18 +60,15 @@ fn main() -> ! {
     led2.init();
     let uart = imu_fsr_stm32g4::Uart3::new();
     uart.init();
-    let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
-    uart_rs854.init();
     let spi = imu_fsr_stm32g4::SPI2::new();
     spi.init();
-    let clock = imu_fsr_stm32g4::LocalClock::new();
+
+    let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
+    uart_rs854.init();
+    let clock : imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
     clock.init();
 
-    let ctd = dynamixel_f_rs::ControlTableData::new();
-    let dxl_f =
-        dynamixel_f_rs::DynamixelProtocolHandler::new(&mut uart_rs854, &clock, 4_000_000, &ctd);
-
-    let app = app::App::new(led0, led1, led2, uart, spi);
+    let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
     free(|cs| G_APP.borrow(cs).replace(Some(app)));
 
     let mut t = 0;
@@ -136,4 +133,5 @@ fn main() -> ! {
             prev = t;
         }
     }
+
 }

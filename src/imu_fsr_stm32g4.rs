@@ -3,7 +3,7 @@ use crate::fsr::Fsr;
 use crate::indicator::Indicator;
 use crate::potensio::Potensio;
 use dynamixel_f_rs::Clock;
-use dynamixel_f_rs::Interface;
+use dynamixel_f_rs::BufferInterface;
 
 //
 use core::cell::RefCell;
@@ -243,7 +243,7 @@ impl LocalClock {
 
 pub struct Uart1 {}
 
-impl dynamixel_f_rs::Interface for Uart1 {
+impl dynamixel_f_rs::BufferInterface for Uart1 {
     fn write_byte(&mut self, data: u8) {}
     fn write_bytes(&mut self, data: &[u8]) {}
     fn read_byte(&mut self) -> Option<u8> {

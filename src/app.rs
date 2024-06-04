@@ -1,31 +1,39 @@
 use crate::{imu_fsr_stm32g4::Uart3, imu_fsr_stm32g4::SPI2, indicator::Indicator};
 
-pub struct App<T0, T1, T2>
+pub struct App<T0, T1, T2, I, C>
 where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
+    I: dynamixel_f_rs::BufferInterface,
+    C: dynamixel_f_rs::Clock,
 {
     led0: T0,
     led1: T1,
     led2: T2,
     uart: Uart3, // TODO: interfaceを整理
     spi: SPI2,   // TODO: interfaceを整理
+    dxl: dynamixel_f_rs::DynamixelProtocolHandler<I, C>,
 }
 
-impl<T0, T1, T2> App<T0, T1, T2>
+impl<T0, T1, T2, I, C> App<T0, T1, T2, I, C>
 where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
+    I: dynamixel_f_rs::BufferInterface,
+    C: dynamixel_f_rs::Clock,
 {
-    pub fn new(led0: T0, led1: T1, led2: T2, uart: Uart3, spi: SPI2) -> Self {
+    pub fn new(led0: T0, led1: T1, led2: T2, uart: Uart3, spi: SPI2, mut buffer_interface: I, clock: C) -> Self {
+        let ctd = dynamixel_f_rs::ControlTableData::new();
+        let dxl = dynamixel_f_rs::DynamixelProtocolHandler::new(buffer_interface, clock, 4_000_000, ctd);
         Self {
             led0,
             led1,
             led2,
             uart,
             spi,
+            dxl,
         }
     }
     pub fn periodic_task(&self) {
