@@ -1,3 +1,5 @@
+use dynamixel_f_rs::control_table::BitsW;
+
 use crate::{imu_fsr_stm32g4::Uart3, imu_fsr_stm32g4::SPI2, indicator::Indicator};
 
 pub struct App<T0, T1, T2, I, C>
@@ -24,9 +26,18 @@ where
     I: dynamixel_f_rs::BufferInterface,
     C: dynamixel_f_rs::Clock,
 {
-    pub fn new(led0: T0, led1: T1, led2: T2, uart: Uart3, spi: SPI2, mut buffer_interface: I, clock: C) -> Self {
+    pub fn new(
+        led0: T0,
+        led1: T1,
+        led2: T2,
+        uart: Uart3,
+        spi: SPI2,
+        mut buffer_interface: I,
+        clock: C,
+    ) -> Self {
         let ctd = dynamixel_f_rs::ControlTableData::new();
-        let dxl = dynamixel_f_rs::DynamixelProtocolHandler::new(buffer_interface, clock, 4_000_000, ctd);
+        let dxl =
+            dynamixel_f_rs::DynamixelProtocolHandler::new(buffer_interface, clock, 4_000_000, ctd);
         Self {
             led0,
             led1,
@@ -47,6 +58,9 @@ where
         self.spi.txrx(0x0F | 0b1000_0000); // accel z
         self.spi.txrx(0x10 | 0b1000_0000); // accel z
     }
-    pub fn update_fsr_task(&self) {}
+    pub fn update_fsr_task(&self) {
+        // ctdの編集
+        self.dxl.ctd.modify(|_, w| w.led().bits(1));
+    }
     pub fn parse_uart_task(&self) {}
 }

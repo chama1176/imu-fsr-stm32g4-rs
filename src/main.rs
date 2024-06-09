@@ -22,7 +22,17 @@ mod indicator;
 mod potensio;
 
 static G_APP: Mutex<
-    RefCell<Option<app::App<imu_fsr_stm32g4::Led0, imu_fsr_stm32g4::Led1, imu_fsr_stm32g4::Led2, imu_fsr_stm32g4::Uart1, imu_fsr_stm32g4::LocalClock>>>,
+    RefCell<
+        Option<
+            app::App<
+                imu_fsr_stm32g4::Led0,
+                imu_fsr_stm32g4::Led1,
+                imu_fsr_stm32g4::Led2,
+                imu_fsr_stm32g4::Uart1,
+                imu_fsr_stm32g4::LocalClock,
+            >,
+        >,
+    >,
 > = Mutex::new(RefCell::new(None));
 
 //　タイマ割り込みでIMU等読み取り[App]
@@ -65,7 +75,7 @@ fn main() -> ! {
 
     let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
     uart_rs854.init();
-    let clock : imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
+    let clock: imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
     clock.init();
 
     let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
@@ -133,5 +143,4 @@ fn main() -> ! {
             prev = t;
         }
     }
-
 }
