@@ -2,8 +2,8 @@
 use crate::fsr::Fsr;
 use crate::indicator::Indicator;
 use crate::potensio::Potensio;
-use dynamixel_f_rs::Clock;
 use dynamixel_f_rs::BufferInterface;
+use dynamixel_f_rs::Clock;
 
 //
 use core::cell::RefCell;
@@ -241,23 +241,43 @@ impl LocalClock {
     pub fn init(&self) {}
 }
 
-pub struct Uart1 {}
+// For RS485
+pub struct Uart1 {
+    buffer_ : dynamixel_f_rs::RingBuffer<128>,
+}
 
 impl dynamixel_f_rs::BufferInterface for Uart1 {
-    fn write_byte(&mut self, data: u8) {}
-    fn write_bytes(&mut self, data: &[u8]) {}
+    fn write_byte(&mut self, data: u8) {
+        self.putc(data);
+    }
+    fn write_bytes(&mut self, data: &[u8]) {
+        for d in data {
+            self.write_byte(*d);
+        }
+    }
     fn read_byte(&mut self) -> Option<u8> {
-        Some(0)
+        self.buffer_.dequeue()
     }
     fn read_bytes(&mut self, buf: &mut [u8]) -> Option<usize> {
-        Some(0)
+        if self.buffer_.is_empty() {
+            return None;
+        }
+        for i in 0..buf.len() {
+            match self.buffer_.dequeue() {
+                Some(v) => {buf[i] = v},
+                None => {return Some(i)},
+            }
+        }
+        Some(buf.len())
     }
     fn clear_read_buf(&mut self) {}
 }
 
 impl Uart1 {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            buffer_ : dynamixel_f_rs::RingBuffer::new(),
+        }
     }
 
     pub fn init(&self) {
@@ -316,6 +336,10 @@ impl Uart1 {
                 while uart.isr.read().txe().bit_is_clear() {}
             }
         });
+    }
+    // 受信割り込みでbufferに入れる
+    fn add_data_to_buufer(&mut self, d: u8){
+        self.buffer_.enqueue(d).unwrap();
     }
 }
 
