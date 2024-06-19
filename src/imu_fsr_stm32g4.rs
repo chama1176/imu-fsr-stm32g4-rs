@@ -24,7 +24,7 @@ pub fn init_g_peripheral(perip: Peripherals) {
     free(|cs| G_PERIPHERAL.borrow(cs).replace(Some(perip)));
 }
 
-pub fn clock_init(perip: &Peripherals) {
+pub fn clock_init(perip: &Peripherals, core_perip: &mut CorePeripherals) {
     perip.RCC.cr.modify(|_, w| w.hsebyp().bypassed());
     perip.RCC.cr.modify(|_, w| w.hseon().on());
     while perip.RCC.cr.read().hserdy().is_not_ready() {}
@@ -76,6 +76,13 @@ pub fn clock_init(perip: &Peripherals) {
     tim6.arr.modify(|_, w| unsafe { w.bits(1000 - 1) }); // 1kHz
     tim6.dier.modify(|_, w| w.uie().set_bit());
     tim6.cr2.modify(|_, w| unsafe { w.mms().bits(0b010) });
+
+    // 割り込み設定
+    unsafe {
+        core_perip.NVIC.set_priority(Interrupt::USART1, 0);
+        NVIC::unmask(Interrupt::USART1);
+    }
+
 }
 
 pub fn dma_init(perip: &Peripherals, core_perip: &mut CorePeripherals, address: u32) {
@@ -243,7 +250,7 @@ impl LocalClock {
 
 // For RS485
 pub struct Uart1 {
-    buffer_ : dynamixel_f_rs::RingBuffer<128>,
+    pub buffer_ : dynamixel_f_rs::RingBuffer<128>,
 }
 
 impl dynamixel_f_rs::BufferInterface for Uart1 {
@@ -271,6 +278,12 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
         Some(buf.len())
     }
     fn clear_read_buf(&mut self) {}
+}
+
+impl dynamixel_f_rs::QueueInterface for Uart1 {
+    fn enqueue(&mut self, data: u8) -> Result<(), ()> {
+        self.buffer_.enqueue(data)
+    }
 }
 
 impl Uart1 {
@@ -306,7 +319,12 @@ impl Uart1 {
                 // Set word length
                 uart.cr1.modify(|_, w| w.m0().clear_bit());
                 uart.cr1.modify(|_, w| w.m1().clear_bit());
-                // FIFO?
+                // FIFO enable
+                uart.cr1.modify(|_, w| w.fifoen().set_bit());
+
+                // FIFO empty interrupt is generated if RXFNEIE = 1 in the USART_CR1 register
+                uart.cr1.modify(|_, w| w.rxneie().set_bit());
+                
                 // Set baud rate
                 uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
 

@@ -15,6 +15,9 @@ use core::ops::DerefMut;
 use cortex_m::interrupt::{free, Mutex};
 use cortex_m_rt::entry;
 
+use stm32g4::stm32g431::{interrupt, uart4};
+use stm32g4::stm32g431::Interrupt::USART1;
+
 mod app;
 mod fsr;
 mod imu_fsr_stm32g4;
@@ -38,9 +41,54 @@ static G_APP: Mutex<
 //　タイマ割り込みでIMU等読み取り[App]
 // FSRのADC結果を即時反映するためにはDMA完了割り込みがよさそう？
 
-// 受信割り込みでuart処理[これもApp内でおこなう]
+// 受信割り込みでbufferに入れる
 
-// static adc_data:[u16; 4] = [7; 4];
+#[interrupt]
+fn USART1() {
+
+    // FIFOの最大サイズ+1までループでチェックする
+    for _ in 0..10 {
+        let mut data:u8 = 0;
+        free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let uart = &perip.USART1;
+                // RXFNEで割り込みが入っていることの確認
+                if uart.isr.read().rxne().bit_is_clear() { // RXFNE
+                    // bufferが空になったらreturn
+                    return;
+                } else {
+                    data = uart.rdr.read().rdr().bits() as u8;
+                }
+            }
+        });
+    
+        free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+            None => (),
+            Some(app) => {
+                app.enque_uart(data);
+                defmt::info!("enqueue");
+            }
+        });
+    
+    }
+
+    // TODO: 割り込み解除処理
+    // ここまで来ているということは正常に空にできていない
+    defmt::error!("Something went wrong when clearing fifo.");
+    free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+        None => (),
+        Some(perip) => {
+            //    The RXFNE flag can also be cleared by writing 1 to the RXFRQ in the USART_RQR register
+            let uart = &perip.USART1;
+            uart.rqr.write(|w| w.rxfrq().set_bit());
+        }
+    });
+
+
+    
+}
+// dxl.parse_data(はブロッキングなのでmainで呼ぶはず
 
 #[entry]
 fn main() -> ! {
@@ -51,7 +99,7 @@ fn main() -> ! {
     let perip = stm32g431::Peripherals::take().unwrap();
     let mut core_perip = stm32g431::CorePeripherals::take().unwrap();
 
-    imu_fsr_stm32g4::clock_init(&perip);
+    imu_fsr_stm32g4::clock_init(&perip, &mut core_perip);
     imu_fsr_stm32g4::adc2_init(&perip);
 
     let adc_data: [u16; 4] = [7; 4];
@@ -80,6 +128,17 @@ fn main() -> ! {
 
     let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
     free(|cs| G_APP.borrow(cs).replace(Some(app)));
+
+    loop {
+        free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+            None => (),
+            Some(app) => {
+                app.parse_uart_task();
+                defmt::info!("parse uart task finished.");
+            }
+        });
+    }
+
 
     let mut t = 0;
     free(

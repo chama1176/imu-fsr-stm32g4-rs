@@ -7,7 +7,7 @@ where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
-    I: dynamixel_f_rs::BufferInterface,
+    I: dynamixel_f_rs::BufferInterface+dynamixel_f_rs::QueueInterface,
     C: dynamixel_f_rs::Clock,
 {
     led0: T0,
@@ -23,7 +23,7 @@ where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
-    I: dynamixel_f_rs::BufferInterface,
+    I: dynamixel_f_rs::BufferInterface+dynamixel_f_rs::QueueInterface,
     C: dynamixel_f_rs::Clock,
 {
     pub fn new(
@@ -62,5 +62,14 @@ where
         // ctdの編集
         self.dxl.ctd.modify(|_, w| w.led().bits(1));
     }
-    pub fn parse_uart_task(&self) {}
+    pub fn enque_uart(&mut self, data: u8) {
+        self.dxl.uart.enqueue(data).unwrap();
+    }
+    pub fn parse_uart_task(&mut self) {
+
+        // UART送信テスト
+        self.dxl.uart.write_byte(0xAA);
+        // Dxl処理(受信があった場合自動返信するはず)
+        let _ = self.dxl.parse_data();
+    }
 }
