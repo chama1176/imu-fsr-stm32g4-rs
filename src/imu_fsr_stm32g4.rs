@@ -53,7 +53,7 @@ pub fn clock_init(perip: &Peripherals, core_perip: &mut CorePeripherals) {
 
     perip.RCC.cfgr.modify(|_, w| w.sw().pll());
     // perip.RCC.cfgr.modify(|_, w| w.sw().hse());
-    defmt::info!("sw bit: {}", perip.RCC.cfgr.read().sw().bits());
+    defmt::debug!("sw bit: {}", perip.RCC.cfgr.read().sw().bits());
     while !perip.RCC.cfgr.read().sw().is_pll() {}
     while !perip.RCC.cfgr.read().sws().is_pll() {
         defmt::info!("sw bit: {}", perip.RCC.cfgr.read().sw().bits());
@@ -112,7 +112,7 @@ pub fn dma_init(perip: &Peripherals, core_perip: &mut CorePeripherals, address: 
     perip.DMA1.ccr1.modify(|_, w| w.dir().clear_bit()); // read from peripheral
     perip.DMA1.ccr1.modify(|_, w| w.teie().clear_bit()); // transfer error interrupt enable
     perip.DMA1.ccr1.modify(|_, w| w.htie().clear_bit()); // half transfer interrupt enable
-    perip.DMA1.ccr1.modify(|_, w| w.tcie().clear_bit()); // transfer complete interrupt enable
+    perip.DMA1.ccr1.modify(|_, w| w.tcie().set_bit()); // transfer complete interrupt enable
 
     // For category 2 devices:
     // • DMAMUX channels 0 to 5 are connected to DMA1 channels 1 to 6
@@ -140,13 +140,13 @@ pub fn dma_init(perip: &Peripherals, core_perip: &mut CorePeripherals, address: 
         .cmar1
         .modify(|_, w| unsafe { w.ma().bits(address) }); // memory address
 
+    
     // 割り込み設定
-    // unsafe{
-    //     core_perip.NVIC.set_priority(Interrupt::DMA1_CH1, 0);
-    //     NVIC::unmask(Interrupt::DMA1_CH1);
-    //     core_perip.NVIC.set_priority(Interrupt::ADC1_2, 0);
-    //     NVIC::unmask(Interrupt::ADC1_2);
-    // }
+    unsafe{
+        core_perip.NVIC.set_priority(Interrupt::DMA1_CH1, 1);
+        NVIC::unmask(Interrupt::DMA1_CH1);
+    }
+
 }
 
 pub fn adc2_init(perip: &Peripherals) {
@@ -522,7 +522,7 @@ impl SPI2 {
                 while spi.sr.read().bsy().bit_is_set() {}
                 while spi.sr.read().rxne().bit_is_clear() {}
                 gpiob.bsrr.write(|w| w.bs12().set());
-                defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
+                defmt::debug!("dr: {:x}", spi.dr.read().dr().bits());
             }
         });
     }
