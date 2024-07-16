@@ -18,7 +18,7 @@ use cortex_m_rt::entry;
 use stm32g4::stm32g431::{interrupt, uart4};
 use stm32g4::stm32g431::Interrupt::USART1;
 use stm32g4::stm32g431::Interrupt::DMA1_CH1;
-// use stm32g4::stm32g431::Interrupt::TIM3;
+use stm32g4::stm32g431::Interrupt::TIM3;
 
 mod app;
 mod fsr;
@@ -129,8 +129,17 @@ fn USART1() {
     // });
 
 }
+
+#[interrupt]
+fn TIM3() {
+    
+}
+
+
 // dxl.parse_data(はブロッキングなのでmainで呼ぶはず
 
+
+    
 #[entry]
 fn main() -> ! {
     use stm32g4::stm32g431;
