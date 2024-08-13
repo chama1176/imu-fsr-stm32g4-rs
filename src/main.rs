@@ -46,7 +46,10 @@ static G_APP: Mutex<
 fn DMA1_CH1() {
 
     free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
-        None => (),
+        None => {
+            defmt::info!("Peripheral is not initialized yet. Return");
+            return;
+        },
         Some(perip) => {
             let dma = &perip.DMA1;
             // TCIFで割り込みが入っていることの確認
@@ -61,11 +64,14 @@ fn DMA1_CH1() {
     });
 
     free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-        None => (),
+        None => {
+            defmt::info!("App is not initialized yet. Return");
+            return;
+        },
         Some(app) => {
+            // defmt::info!("dma interrupt");
             app.update_fsr_task();
             app.read_imu_task();
-            defmt::debug!("dma interrupt");
         }
     });
 
@@ -132,7 +138,29 @@ fn USART1() {
 
 #[interrupt]
 fn TIM3() {
-    
+    imu_fsr_stm32g4::clear_tim3_uif();
+
+    free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+        None => {
+            defmt::info!("App is not initialized yet. Return");
+            return;
+        },
+        Some(app) => {
+            defmt::warn!("toggle");
+            app.periodic_task();
+        }
+    });
+
+    free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+        None => (),
+        Some(app) => {
+            // 👺はホントは受信完了時にするのがよさそう？
+            app.parse_uart_task();
+            defmt::info!("parse uart task finished.");
+        }
+    });
+
+
 }
 
 
@@ -180,13 +208,7 @@ fn main() -> ! {
     free(|cs| G_APP.borrow(cs).replace(Some(app)));
 
     loop {
-        free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-            None => (),
-            Some(app) => {
-                app.parse_uart_task();
-                defmt::info!("parse uart task finished.");
-            }
-        });
+        // main loopでは何もせず割り込みで処理する
     }
 
 

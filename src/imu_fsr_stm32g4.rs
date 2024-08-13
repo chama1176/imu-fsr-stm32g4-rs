@@ -66,14 +66,14 @@ pub fn clock_init(perip: &Peripherals, core_perip: &mut CorePeripherals) {
 
     let tim3 = &perip.TIM3;
     // tim3.psc.modify(|_, w| unsafe { w.bits(170 - 1) });
-    tim3.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) }); // 14_000?
-    tim3.arr.modify(|_, w| unsafe { w.bits(10_000 - 1) });    // 1kHz
+    tim3.psc.modify(|_, w| unsafe { w.bits(14_000 - 1) });
+    tim3.arr.modify(|_, w| unsafe { w.bits(10_000 - 1) });    // 1Hz
     tim3.dier.modify(|_, w| w.uie().set_bit());
     tim3.cr1.modify(|_, w| w.cen().set_bit());
 
     let tim6 = &perip.TIM6;
-    tim6.psc.modify(|_, w| unsafe { w.bits(15_000 - 1) }); // 14_000?
-    tim6.arr.modify(|_, w| unsafe { w.bits(1000 - 1) }); // 1kHz
+    tim6.psc.modify(|_, w| unsafe { w.bits(140 - 1) });
+    tim6.arr.modify(|_, w| unsafe { w.bits(1_000 - 1) }); // 1kHz
     tim6.dier.modify(|_, w| w.uie().set_bit());
     tim6.cr2.modify(|_, w| unsafe { w.mms().bits(0b010) });
 
@@ -81,11 +81,22 @@ pub fn clock_init(perip: &Peripherals, core_perip: &mut CorePeripherals) {
     unsafe {
         core_perip.NVIC.set_priority(Interrupt::USART1, 0);
         NVIC::unmask(Interrupt::USART1);
-        core_perip.NVIC.set_priority(Interrupt::TIM3, 0);
+        core_perip.NVIC.set_priority(Interrupt::TIM3, 2);
         NVIC::unmask(Interrupt::TIM3);
     }
 
 }
+
+pub fn clear_tim3_uif() {
+    free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+        None => (),
+        Some(perip) => {
+            let tim3 = &perip.TIM3;
+            tim3.sr.modify(|_, w| w.uif().clear_bit());
+        }
+    });
+}
+
 
 pub fn dma_init(perip: &Peripherals, core_perip: &mut CorePeripherals, address: u32) {
     // DMAの電源投入(クロックの有効化)
@@ -524,7 +535,7 @@ impl SPI2 {
                 while spi.sr.read().bsy().bit_is_set() {}
                 while spi.sr.read().rxne().bit_is_clear() {}
                 gpiob.bsrr.write(|w| w.bs12().set());
-                defmt::debug!("dr: {:x}", spi.dr.read().dr().bits());
+                defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
             }
         });
     }
