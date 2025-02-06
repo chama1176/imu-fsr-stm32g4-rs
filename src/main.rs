@@ -65,7 +65,7 @@ fn DMA1_CH1() {
 
     free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
         None => {
-            defmt::info!("App is not initialized yet. Return");
+            // defmt::info!("App is not initialized yet. Return");
             return;
         },
         Some(app) => {
@@ -81,6 +81,7 @@ fn DMA1_CH1() {
 #[interrupt]
 fn USART1() {
 
+    let mut recieved_flag = false;
     // FIFOの最大サイズ+1までループでチェックする
     for _ in 0..=9 {
         let mut data:u8 = 0;
@@ -99,12 +100,19 @@ fn USART1() {
                     return_flag = true;
                 } else {
                     data = uart.rdr.read().rdr().bits() as u8;
+                    defmt::info!("get: 0x{:x}", data);
+                    recieved_flag = true;
                 }
-                defmt::info!("get");
             }
         });
+        // free内部からいきなりreturnできないのでflagを使う
         if return_flag {
-            return;
+            if recieved_flag {
+                defmt::info!("recieved flag is true");
+                break;
+            }else{
+                return;
+            }
         }
         free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
             None => {
@@ -122,9 +130,18 @@ fn USART1() {
         }    
     }
 
-    // ここまで来ているということは正常に空にできていない
-    defmt::error!("Something went wrong when clearing fifo.");
-    unreachable!();
+    free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+        None => (),
+        Some(app) => {
+            // 👺はホントは受信完了時にするのがよさそう？
+            app.parse_uart_task();
+            defmt::info!("parse uart task finished.");
+        }
+    });
+
+    // // ここまで来ているということは正常に空にできていない
+    // defmt::error!("Something went wrong when clearing fifo.");
+    // unreachable!();
     // free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
     //     None => (),
     //     Some(perip) => {
@@ -147,18 +164,21 @@ fn TIM3() {
         },
         Some(app) => {
             defmt::warn!("toggle");
+            //割り込み内でしかcsが取れない？👺
+            app.init();
             app.periodic_task();
         }
     });
 
-    free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-        None => (),
-        Some(app) => {
-            // 👺はホントは受信完了時にするのがよさそう？
-            app.parse_uart_task();
-            defmt::info!("parse uart task finished.");
-        }
-    });
+
+    // free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+    //     None => (),
+    //     Some(app) => {
+    //         // 👺はホントは受信完了時にするのがよさそう？
+    //         app.parse_uart_task();
+    //         defmt::info!("parse uart task finished.");
+    //     }
+    // });
 
 
 }
@@ -207,8 +227,8 @@ fn main() -> ! {
     let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
     free(|cs| G_APP.borrow(cs).replace(Some(app)));
 
+    
     loop {
-        // main loopでは何もせず割り込みで処理する
     }
 
 

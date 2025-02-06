@@ -274,6 +274,7 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
         for d in data {
             self.write_byte(*d);
         }
+        for d in data { defmt::info!("write 0x{:x}", d); }
     }
     fn read_byte(&mut self) -> Option<u8> {
         self.buffer_.dequeue()
@@ -293,6 +294,7 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
     fn clear_read_buf(&mut self) {}
 }
 
+// データを流し込む用
 impl dynamixel_f_rs::QueueInterface for Uart1 {
     fn enqueue(&mut self, data: u8) -> Result<(), ()> {
         self.buffer_.enqueue(data)
@@ -367,10 +369,6 @@ impl Uart1 {
                 while uart.isr.read().txe().bit_is_clear() {}
             }
         });
-    }
-    // 受信割り込みでbufferに入れる
-    fn add_data_to_buufer(&mut self, d: u8){
-        self.buffer_.enqueue(d).unwrap();
     }
 }
 
@@ -535,7 +533,7 @@ impl SPI2 {
                 while spi.sr.read().bsy().bit_is_set() {}
                 while spi.sr.read().rxne().bit_is_clear() {}
                 gpiob.bsrr.write(|w| w.bs12().set());
-                defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
+                // defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
             }
         });
     }

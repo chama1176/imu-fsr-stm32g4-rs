@@ -37,7 +37,7 @@ where
     ) -> Self {
         let ctd = dynamixel_f_rs::ControlTableData::new();
         let dxl =
-            dynamixel_f_rs::DynamixelProtocolHandler::new(buffer_interface, clock, 4_000_000, ctd);
+            dynamixel_f_rs::DynamixelProtocolHandler::new(buffer_interface, clock, 115200, ctd);
         Self {
             led0,
             led1,
@@ -65,11 +65,22 @@ where
     pub fn enque_uart(&mut self, data: u8) {
         self.dxl.uart.enqueue(data).unwrap();
     }
-    pub fn parse_uart_task(&mut self) {
+    pub fn init(&self){
+        self.dxl.ctd.modify(|_, w| w.id().bits(1));
 
-        // UART送信テスト
-        self.dxl.uart.write_byte(0xAA);
+        defmt::info!("id: {}", self.dxl.ctd.read().id());
+
+    }
+    pub fn parse_uart_task(&mut self) {
         // Dxl処理(受信があった場合自動返信するはず)
-        let _ = self.dxl.parse_data();
+        let r = self.dxl.parse_data();
+        match r {
+            Ok(_) => {
+                defmt::info!("ok");
+            }
+            Err(e) => {
+                defmt::info!("error");
+            }
+        }
     }
 }
