@@ -165,7 +165,7 @@ fn TIM3() {
         Some(app) => {
             defmt::warn!("toggle");
             //割り込み内でしかcsが取れない？👺
-            app.init();
+            // app.init();
             app.periodic_task();
         }
     });
@@ -224,8 +224,12 @@ fn main() -> ! {
     let clock: imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
     clock.init();
 
-    let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
-    free(|cs| G_APP.borrow(cs).replace(Some(app)));
+    free(|cs|{
+        let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
+        app.init();
+        G_APP.borrow(cs).replace(Some(app));
+    });
+    // free(|cs| G_APP.borrow(cs).replace(Some(app)));
 
     
     loop {

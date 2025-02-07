@@ -67,8 +67,11 @@ where
     }
     pub fn init(&self){
         self.dxl.ctd.modify(|_, w| w.id().bits(1));
+        self.dxl.ctd.modify(|_, w| w.present_position().bits(777));
+        
 
         defmt::info!("id: {}", self.dxl.ctd.read().id());
+        defmt::info!("present position: {}", self.dxl.ctd.read().present_position());
 
     }
     pub fn parse_uart_task(&mut self) {
