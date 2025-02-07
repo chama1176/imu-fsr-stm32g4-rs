@@ -51,8 +51,8 @@ where
         self.led0.toggle();
         self.led1.toggle();
         self.led2.toggle();
-        defmt::info!("goal position: {}", self.dxl.ctd.read().goal_position());
-        defmt::info!("goal current: {}", self.dxl.ctd.read().goal_current());
+        // defmt::info!("goal position: {}", self.dxl.ctd.read().goal_position());
+        // defmt::info!("goal current: {}", self.dxl.ctd.read().goal_current());
 
     }
     pub fn read_imu_task(&self) {
@@ -70,11 +70,11 @@ where
     }
     pub fn init(&self){
         self.dxl.ctd.modify(|_, w| w.id().bits(1));
-        self.dxl.ctd.modify(|_, w| w.present_position().bits(777));
+        self.dxl.ctd.modify(|_, w| w.present_position().bits(-777));
         
 
-        defmt::info!("id: {}", self.dxl.ctd.read().id());
-        defmt::info!("present position: {}", self.dxl.ctd.read().present_position());
+        // defmt::info!("id: {}", self.dxl.ctd.read().id());
+        // defmt::info!("present position: {}", self.dxl.ctd.read().present_position());
 
     }
     pub fn parse_uart_task(&mut self) {
@@ -82,7 +82,6 @@ where
         let r = self.dxl.parse_data();
         match r {
             Ok(_) => {
-                defmt::info!("ok");
             }
             Err(e) => {
                 defmt::info!("error");

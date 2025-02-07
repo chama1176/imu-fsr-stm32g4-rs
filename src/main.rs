@@ -100,7 +100,7 @@ fn USART1() {
                     return_flag = true;
                 } else {
                     data = uart.rdr.read().rdr().bits() as u8;
-                    defmt::info!("get: 0x{:x}", data);
+                    // defmt::info!("get: 0x{:x}", data);
                     recieved_flag = true;
                 }
             }
@@ -108,7 +108,7 @@ fn USART1() {
         // free内部からいきなりreturnできないのでflagを使う
         if return_flag {
             if recieved_flag {
-                defmt::info!("recieved flag is true");
+                // defmt::info!("recieved flag is true");
                 break;
             }else{
                 return;
@@ -122,7 +122,7 @@ fn USART1() {
             },
             Some(app) => {
                 app.enque_uart(data);
-                defmt::info!("enqueue");
+                // defmt::info!("enqueue");
             }
         });
         if return_flag {
@@ -133,9 +133,8 @@ fn USART1() {
     free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
         None => (),
         Some(app) => {
-            // 👺はホントは受信完了時にするのがよさそう？
             app.parse_uart_task();
-            defmt::info!("parse uart task finished.");
+            // defmt::info!("parse uart task finished.");
         }
     });
 
