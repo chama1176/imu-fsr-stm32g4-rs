@@ -51,6 +51,8 @@ where
         self.led0.toggle();
         self.led1.toggle();
         self.led2.toggle();
+        defmt::info!("goal position: {}", self.dxl.ctd.read().goal_position());
+
     }
     pub fn read_imu_task(&self) {
         self.spi.txrx(0x1F1F | 0b0000_0000); // enable
