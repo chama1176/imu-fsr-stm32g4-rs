@@ -70,8 +70,7 @@ fn DMA1_CH1() {
         },
         Some(app) => {
             // defmt::info!("dma interrupt");
-            app.update_fsr_task();
-            app.read_imu_task();
+            app.update_task();
         }
     });
 
@@ -169,24 +168,9 @@ fn TIM3() {
         }
     });
 
-
-    // free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-    //     None => (),
-    //     Some(app) => {
-    //         // 👺はホントは受信完了時にするのがよさそう？
-    //         app.parse_uart_task();
-    //         defmt::info!("parse uart task finished.");
-    //     }
-    // });
-
-
 }
 
 
-// dxl.parse_data(はブロッキングなのでmainで呼ぶはず
-
-
-    
 #[entry]
 fn main() -> ! {
     use stm32g4::stm32g431;

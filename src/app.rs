@@ -50,31 +50,52 @@ where
     pub fn periodic_task(&self) {
         self.led0.toggle();
         self.led1.toggle();
-        self.led2.toggle();
+        // self.led2.toggle();
         // defmt::info!("goal position: {}", self.dxl.ctd.read().goal_position());
         // defmt::info!("goal current: {}", self.dxl.ctd.read().goal_current());
 
     }
-    pub fn read_imu_task(&self) {
+    pub fn update_task(&self) {
+        self.update_fsr_task();
+        self.read_imu_task();
+
+        if self.dxl.ctd.read().led() == 1 {
+            self.led2.on();
+        } else {
+            self.led2.off();
+        }
+
+
+    }
+    fn read_imu_task(&self) {
         self.spi.txrx(0x1F1F | 0b0000_0000); // enable
         self.spi.txrx(0x75 | 0b1000_0000); // who am i
         self.spi.txrx(0x0F | 0b1000_0000); // accel z
         self.spi.txrx(0x10 | 0b1000_0000); // accel z
     }
-    pub fn update_fsr_task(&self) {
+    fn update_fsr_task(&self) {
         // ctdの編集
-        self.dxl.ctd.modify(|_, w| w.led().bits(1));
+        // self.dxl.ctd.modify(|_, w| w.led().bits(1));
     }
     pub fn enque_uart(&mut self, data: u8) {
         self.dxl.uart.enqueue(data).unwrap();
     }
     pub fn init(&self){
+        // ctdの初期値は全部0
         self.dxl.ctd.modify(|_, w| w.id().bits(1));
-        self.dxl.ctd.modify(|_, w| w.present_position().bits(-777));
         
+        self.dxl.ctd.modify(|_, w| w.model_number().bits(0x04BA)); // 0x04BA: XC330-T181-T
+        self.dxl.ctd.modify(|_, w| w.firmware_version().bits(0x30));
+        self.dxl.ctd.modify(|_, w| w.baud_rate().bits(0x06)); // 0x06: 4Mbps
+        self.dxl.ctd.modify(|_, w| w.return_delay_time().bits(0x00));
+        self.dxl.ctd.modify(|_, w| w.drive_mode().bits(0x00));
+        self.dxl.ctd.modify(|_, w| w.operating_mode().bits(0x00)); // 0x00 current control
+        self.dxl.ctd.modify(|_, w| w.moving_threshold().bits(0x0A)); // default
+        self.dxl.ctd.modify(|_, w| w.temperature_limit().bits(0x46)); // 70℃
+        self.dxl.ctd.modify(|_, w| w.max_voltage_limit().bits(0x8C)); // 14V
+        self.dxl.ctd.modify(|_, w| w.min_voltage_limit().bits(0x37)); // 5.5V
 
-        // defmt::info!("id: {}", self.dxl.ctd.read().id());
-        // defmt::info!("present position: {}", self.dxl.ctd.read().present_position());
+        self.dxl.ctd.modify(|_, w| w.present_position().bits(-777));
 
     }
     pub fn parse_uart_task(&mut self) {

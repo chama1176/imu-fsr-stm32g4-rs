@@ -274,7 +274,7 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
         for d in data {
             self.write_byte(*d);
         }
-        // for d in data { defmt::info!("write 0x{:x}", d); }
+        // for d in data { defmt::info!("w 0x{:x}", d); }
     }
     fn read_byte(&mut self) -> Option<u8> {
         self.buffer_.dequeue()
