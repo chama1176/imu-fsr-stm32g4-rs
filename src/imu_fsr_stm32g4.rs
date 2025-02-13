@@ -518,7 +518,8 @@ impl SPI2 {
             }
         });
     }
-    pub fn txrx(&self, c: u16) {
+    pub fn txrx(&self, c: u16) -> Result<u16,()>{
+        let mut result = Err(());
         free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
             None => (),
             Some(perip) => {
@@ -534,8 +535,10 @@ impl SPI2 {
                 while spi.sr.read().rxne().bit_is_clear() {}
                 gpiob.bsrr.write(|w| w.bs12().set());
                 // defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
+                result = Ok(spi.dr.read().dr().bits())
             }
         });
+        result
     }
 }
 

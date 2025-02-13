@@ -68,10 +68,13 @@ where
 
     }
     fn read_imu_task(&self) {
-        self.spi.txrx(0x1F1F | 0b0000_0000); // enable
-        self.spi.txrx(0x75 | 0b1000_0000); // who am i
-        self.spi.txrx(0x0F | 0b1000_0000); // accel z
-        self.spi.txrx(0x10 | 0b1000_0000); // accel z
+        self.spi.txrx(0x1F1F | 0b0000_0000).unwrap(); // enable
+        self.spi.txrx(0x75 | 0b1000_0000).unwrap(); // who am i
+        
+        let accel_z_high =  self.spi.txrx(0x0F | 0b1000_0000).unwrap(); // accel z
+        let accel_z_low =  self.spi.txrx(0x10 | 0b1000_0000).unwrap(); // accel z
+        let accel_z = ((accel_z_high as u32) << 16) | accel_z_low as u32;
+        defmt::info!("accel z: {}", accel_z);
     }
     fn update_fsr_task(&self) {
         // ctdの編集
