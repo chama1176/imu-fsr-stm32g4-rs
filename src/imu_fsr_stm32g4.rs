@@ -534,8 +534,9 @@ impl SPI2 {
                 while spi.sr.read().bsy().bit_is_set() {}
                 while spi.sr.read().rxne().bit_is_clear() {}
                 gpiob.bsrr.write(|w| w.bs12().set());
-                // defmt::info!("dr: {:x}", spi.dr.read().dr().bits());
-                result = Ok(spi.dr.read().dr().bits())
+                let res = spi.dr.read().dr().bits() >> 8;
+                // defmt::info!("dr: {:x}", res);
+                result = Ok(res)
             }
         });
         result
