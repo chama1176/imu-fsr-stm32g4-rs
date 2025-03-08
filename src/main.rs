@@ -26,6 +26,10 @@ mod imu_fsr_stm32g4;
 mod indicator;
 mod potensio;
 
+use motml::encoder::Encoder;
+use motml::utils::Deg;
+
+
 static G_APP: Mutex<
     RefCell<
         Option<
@@ -33,6 +37,7 @@ static G_APP: Mutex<
                 imu_fsr_stm32g4::Led0,
                 imu_fsr_stm32g4::Led1,
                 imu_fsr_stm32g4::Led2,
+                imu_fsr_stm32g4::Spi1,
                 imu_fsr_stm32g4::Uart1,
                 imu_fsr_stm32g4::LocalClock,
             >,
@@ -191,24 +196,30 @@ fn main() -> ! {
     // init g peripheral
     imu_fsr_stm32g4::init_g_peripheral(perip);
 
-    let led0 = imu_fsr_stm32g4::Led0::new();
-    led0.init();
-    let led1 = imu_fsr_stm32g4::Led1::new();
-    led1.init();
-    let led2 = imu_fsr_stm32g4::Led2::new();
-    led2.init();
-    let uart = imu_fsr_stm32g4::Uart3::new();
-    uart.init();
-    let spi = imu_fsr_stm32g4::SPI2::new();
-    spi.init();
-
-    let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
-    uart_rs854.init();
-    let clock: imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
-    clock.init();
 
     free(|cs|{
-        let app = app::App::new(led0, led1, led2, uart, spi, uart_rs854, clock);
+        // G_APPの初期化が終わるまで割り込み処理が実行されないようにクリティカルセクションを取る
+        let led0 = imu_fsr_stm32g4::Led0::new();
+        led0.init();
+        let led1 = imu_fsr_stm32g4::Led1::new();
+        led1.init();
+        let led2 = imu_fsr_stm32g4::Led2::new();
+        led2.init();
+        let uart = imu_fsr_stm32g4::Uart3::new();
+        uart.init();
+        let spi = imu_fsr_stm32g4::SPI2::new();
+        spi.init();
+
+        let spi_enc = imu_fsr_stm32g4::Spi1::new();
+        spi_enc.init();
+        spi_enc.reset_error();
+
+        let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
+        uart_rs854.init();
+        let clock: imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
+        clock.init();
+
+        let app = app::App::new(led0, led1, led2, uart, spi, spi_enc, uart_rs854, clock);
         app.init();
         G_APP.borrow(cs).replace(Some(app));
     });

@@ -1,12 +1,16 @@
 use dynamixel_f_rs::control_table::BitsW;
 
+use motml::encoder::{self, Encoder};
+use motml::utils::Deg;
+
 use crate::{imu_fsr_stm32g4::Uart3, imu_fsr_stm32g4::SPI2, indicator::Indicator};
 
-pub struct App<T0, T1, T2, I, C>
+pub struct App<T0, T1, T2, E, I, C>
 where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
+    E: Encoder<f32>,
     I: dynamixel_f_rs::BufferInterface+dynamixel_f_rs::QueueInterface,
     C: dynamixel_f_rs::Clock,
 {
@@ -15,14 +19,16 @@ where
     led2: T2,
     uart: Uart3, // TODO: interfaceを整理
     spi: SPI2,   // TODO: interfaceを整理
+    encoder: E,
     dxl: dynamixel_f_rs::DynamixelProtocolHandler<I, C>,
 }
 
-impl<T0, T1, T2, I, C> App<T0, T1, T2, I, C>
+impl<T0, T1, T2, E, I, C> App<T0, T1, T2, E, I, C>
 where
     T0: Indicator,
     T1: Indicator,
     T2: Indicator,
+    E: Encoder<f32>,
     I: dynamixel_f_rs::BufferInterface+dynamixel_f_rs::QueueInterface,
     C: dynamixel_f_rs::Clock,
 {
@@ -32,6 +38,7 @@ where
         led2: T2,
         uart: Uart3,
         spi: SPI2,
+        encoder: E,
         mut buffer_interface: I,
         clock: C,
     ) -> Self {
@@ -44,6 +51,7 @@ where
             led2,
             uart,
             spi,
+            encoder,
             dxl,
         }
     }
@@ -58,14 +66,16 @@ where
     pub fn update_task(&self) {
         self.update_fsr_task();
         self.read_imu_task();
+        self.read_encoder_task();
+        self.update_led_task();
 
+    }
+    fn update_led_task(&self) {
         if self.dxl.ctd.read().led() == 1 {
             self.led2.on();
         } else {
             self.led2.off();
         }
-
-
     }
     fn read_imu_task(&self) {
         // defmt::warn!("read imu task");
@@ -76,8 +86,15 @@ where
         let accel_z_lower =  self.spi.txrx(0x10 | 0b1000_0000).unwrap(); // accel z
         let accel_z_raw = (((accel_z_upper as u16) << 8) | accel_z_lower as u16) as i16;
         let accel_z = accel_z_raw as f32 * 16.0 / 32767.0;
-        defmt::info!("accel z: {}", accel_z);
-        self.dxl.ctd.modify(|_, w| w.present_position().bits(accel_z_raw as i32));
+        // defmt::info!("accel z: {}", accel_z);
+        self.dxl.ctd.modify(|_, w| w.goal_position().bits(accel_z_raw as i32));
+    }
+    fn read_encoder_task(&self) {
+        // defmt::warn!("read encoder task");
+        let angle_rad = self.encoder.get_angle().unwrap();
+        defmt::info!("angle rad: {}", angle_rad);
+        let angle_deg_dxl = (angle_rad.rad2deg() / 0.088) as i32;
+        self.dxl.ctd.modify(|_, w| w.present_position().bits(angle_deg_dxl));
     }
     fn update_fsr_task(&self) {
         // ctdの編集
