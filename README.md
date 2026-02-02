@@ -1,3 +1,16 @@
+# IMU and FSR on STM32G4 Board
+
+## Setup
+開発中のため、依存ライブラリを以下のように手動で配置する必要があります。
+```
+|--imu-fsr-stm32g4-rs
+|--motml-rs(モータ制御ライブラリ、エンコーダ用に使用)
+|--dynamixel-f-rs（Dynamixelスレーブライブラリ）
+```
+
+
+
+
 # IMU and FSR on STM32G4 Board made from `cortex-m-quickstart`
 
 [![Rust](https://github.com/chama1176/imu-fsr-stm32g4-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/chama1176/imu-fsr-stm32g4-rs/actions/workflows/rust.yml)
@@ -148,15 +161,12 @@ perip.FLASH.optr.modify(|_, w| w.n_boot0().set_bit());
 
 ## How to Run 
 
-Run command below.
+In windows powershell,
+
+```shell
+$env:DEFMT_LOG="info"
+cargo run -r
 ```
-openocd
-```
-And, another terminal 
-```
-cargo run
-```
-These command run openocd and connect to that, with gdb debugger.
 
 ## Memo
-- 
+- `cargo size --bin imu-fsr-stm32g4 --release -- -A`
