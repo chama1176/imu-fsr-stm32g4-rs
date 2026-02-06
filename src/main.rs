@@ -214,12 +214,12 @@ fn main() -> ! {
         spi_enc.init();
         spi_enc.reset_error();
 
-        let mut uart_rs854 = imu_fsr_stm32g4::Uart1::new();
-        uart_rs854.init();
+        let mut uart_rs485 = imu_fsr_stm32g4::Uart1::new();
+        uart_rs485.init();
         let clock: imu_fsr_stm32g4::LocalClock = imu_fsr_stm32g4::LocalClock::new();
         clock.init();
 
-        let app = app::App::new(led0, led1, led2, uart, spi, spi_enc, uart_rs854, clock);
+        let app = app::App::new(led0, led1, led2, uart, spi, spi_enc, uart_rs485, clock);
         app.init();
         G_APP.borrow(cs).replace(Some(app));
     });

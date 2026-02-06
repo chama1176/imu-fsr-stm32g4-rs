@@ -253,6 +253,7 @@ pub struct LocalClock {}
 
 impl dynamixel_f_rs::Clock for LocalClock {
     fn get_current_time(&self) -> Duration {
+        // dummy implementation
         Duration::from_micros(0)
     }
 }
