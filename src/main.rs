@@ -46,7 +46,7 @@ static G_APP: Mutex<
 > = Mutex::new(RefCell::new(None));
 
 //　タイマ割り込みでIMU等読み取り[App]
-// FSRのADC結果を即時反映するためにはDMA完了割り込みがよさそう？
+// FSRのADC結果を即時反映するためにはDMA完了割り込みがよい
 #[interrupt]
 fn DMA1_CH1() {
 
