@@ -276,9 +276,17 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
         self.putc(data);
     }
     fn write_bytes(&mut self, data: &[u8]) {
-        for d in data {
-            self.write_byte(*d);
-        }
+        free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
+            None => (),
+            Some(perip) => {
+                let uart = &perip.USART1;
+                for d in data {
+                    uart.tdr.write(|w| unsafe { w.tdr().bits(*d as u16) });
+                    // while uart.isr.read().tc().bit_is_set() {}
+                    while uart.isr.read().txe().bit_is_clear() {}
+                }
+            }
+        });
         // for d in data { defmt::info!("w 0x{:x}", d); }
     }
     // リングバッファから値を読み込む
@@ -371,7 +379,7 @@ impl Uart1 {
             None => (),
             Some(perip) => {
                 let uart = &perip.USART1;
-                uart.tdr.modify(|_, w| unsafe { w.tdr().bits(c.into()) });
+                uart.tdr.write(|w| unsafe { w.tdr().bits(c.into()) });
                 // while uart.isr.read().tc().bit_is_set() {}
                 while uart.isr.read().txe().bit_is_clear() {}
             }

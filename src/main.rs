@@ -45,8 +45,8 @@ static G_APP: Mutex<
     >,
 > = Mutex::new(RefCell::new(None));
 
-//　タイマ割り込みでIMU等読み取り[App]
-// FSRのADC結果を即時反映するためにはDMA完了割り込みがよい
+// IMU等読み取り[App]
+// FSRのADC結果を即時反映するためにはDMA完了割り込みで実施
 #[interrupt]
 fn DMA1_CH1() {
 
@@ -76,6 +76,8 @@ fn DMA1_CH1() {
         Some(app) => {
             // defmt::info!("dma interrupt");
             app.update_task();
+            // UARTの受信割り込みで実施すると受信時以外の定期実行ができないので移動
+            app.parse_uart_task();
         }
     });
 
@@ -133,12 +135,13 @@ fn USART1() {
             return;
         }    
     }
-
     free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-        None => (),
+        None => {
+            // defmt::info!("App is not initialized yet. Return");
+            return;
+        },
         Some(app) => {
             app.parse_uart_task();
-            // defmt::info!("parse uart task finished.");
         }
     });
 
@@ -160,18 +163,18 @@ fn USART1() {
 fn TIM3() {
     imu_fsr_stm32g4::clear_tim3_uif();
 
-    free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
-        None => {
-            defmt::info!("App is not initialized yet. Return");
-            return;
-        },
-        Some(app) => {
-            defmt::warn!("toggle");
-            //割り込み内でしかcsが取れない？👺
-            // app.init();
-            app.periodic_task();
-        }
-    });
+    // free(|cs| match G_APP.borrow(cs).borrow_mut().deref_mut() {
+    //     None => {
+    //         defmt::info!("App is not initialized yet. Return");
+    //         return;
+    //     },
+    //     Some(app) => {
+    //         // defmt::warn!("toggle");
+    //         //割り込み内でしかcsが取れない？👺
+    //         // app.init();
+    //         app.periodic_task();
+    //     }
+    // });
 
 }
 

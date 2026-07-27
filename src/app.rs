@@ -64,10 +64,10 @@ where
 
     }
     pub fn update_task(&self) {
-        self.update_fsr_task();
-        self.read_imu_task();
+        // self.update_fsr_task();
+        // self.read_imu_task();
         self.read_encoder_task();
-        self.update_led_task();
+        // self.update_led_task();
 
     }
     fn update_led_task(&self) {
@@ -92,7 +92,7 @@ where
     fn read_encoder_task(&self) {
         // defmt::warn!("read encoder task");
         let angle_rad = self.encoder.get_angle().unwrap();
-        defmt::info!("angle rad: {}", angle_rad);
+        // defmt::info!("angle rad: {}", angle_rad);
         let angle_deg_dxl = (angle_rad.rad2deg() / 0.088) as i32;
         self.dxl.ctd.modify(|_, w| w.present_position().bits(angle_deg_dxl));
     }
@@ -123,13 +123,15 @@ where
     }
     pub fn parse_uart_task(&mut self) {
         // Dxl処理(受信があった場合自動返信するはず)
-        let r = self.dxl.parse_data();
-        match r {
-            Ok(_) => {
-            }
-            Err(e) => {
-                defmt::info!("error");
-            }
-        }
+        let _ = self.dxl.parse_data();
+        let _ = self.dxl.parse_data();
+        // let r = self.dxl.parse_data();
+        // match r {
+        //     Ok(_) => {
+        //     }
+        //     Err(e) => {
+        //         defmt::info!("error");
+        //     }
+        // }
     }
 }

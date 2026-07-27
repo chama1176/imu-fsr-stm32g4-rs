@@ -16,6 +16,7 @@
             },
             //!MODIFY
             "chip": "STM32G431C6Tx",
+            "probe": "0483:374f:001A00294D4B500E20373831",
             "coreConfigs": [
                 {
                 //!MODIFY
