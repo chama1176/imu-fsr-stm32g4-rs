@@ -83,7 +83,7 @@ pub fn clock_init(perip: &Peripherals, core_perip: &mut CorePeripherals) {
 
     // 割り込み設定
     unsafe {
-        core_perip.NVIC.set_priority(Interrupt::USART1, 0);
+        core_perip.NVIC.set_priority(Interrupt::USART1, 15);
         NVIC::unmask(Interrupt::USART1);
         core_perip.NVIC.set_priority(Interrupt::TIM3, 2);
         NVIC::unmask(Interrupt::TIM3);
@@ -281,9 +281,9 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
             Some(perip) => {
                 let uart = &perip.USART1;
                 for d in data {
+                    while uart.isr.read().txe().bit_is_clear() {} //TXFNF: TXFIFO not full
                     uart.tdr.write(|w| unsafe { w.tdr().bits(*d as u16) });
                     // while uart.isr.read().tc().bit_is_set() {}
-                    while uart.isr.read().txe().bit_is_clear() {}
                 }
             }
         });

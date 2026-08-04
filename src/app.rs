@@ -124,7 +124,7 @@ where
     pub fn parse_uart_task(&mut self) {
         // Dxl処理(受信があった場合自動返信するはず)
         let _ = self.dxl.parse_data();
-        let _ = self.dxl.parse_data();
+        // let _ = self.dxl.parse_data();
         // let r = self.dxl.parse_data();
         // match r {
         //     Ok(_) => {

@@ -77,7 +77,7 @@ fn DMA1_CH1() {
             // defmt::info!("dma interrupt");
             app.update_task();
             // UARTの受信割り込みで実施すると受信時以外の定期実行ができないので移動
-            app.parse_uart_task();
+            // app.parse_uart_task();
         }
     });
 
@@ -89,7 +89,7 @@ fn USART1() {
 
     let mut recieved_flag = false;
     // FIFOの最大サイズ+1までループでチェックする
-    for _ in 0..=9 {
+    for i in 0..=9 {
         let mut data:u8 = 0;
         let mut return_flag = false;
         free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
@@ -115,6 +115,7 @@ fn USART1() {
         if return_flag {
             if recieved_flag {
                 // defmt::info!("recieved flag is true");
+                defmt::info!("recieved flag");
                 break;
             }else{
                 return;
@@ -178,6 +179,19 @@ fn TIM3() {
 
 }
 
+defmt::timestamp!("{=u32:us}", {
+    // NOTE(interrupt-safe) single instruction volatile read operation
+    free(|cs| {
+        match imu_fsr_stm32g4::G_PERIPHERAL
+            .borrow(cs)
+            .borrow()
+            .as_ref()
+        {
+            None => 0,
+            Some(perip) => perip.TIM6.cnt.read().cnt().bits() as u32 * 1,
+        }
+    })
+});
 
 #[entry]
 fn main() -> ! {
