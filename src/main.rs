@@ -100,7 +100,6 @@ fn USART1() {
             },
             Some(perip) => {
                 let uart = &perip.USART1;
-                // RXFNEで割り込みが入っていることの確認
                 if uart.isr.read().rxne().bit_is_clear() { // RXFNE
                     // bufferが空になったらreturn
                     return_flag = true;
@@ -115,7 +114,7 @@ fn USART1() {
         if return_flag {
             if recieved_flag {
                 // defmt::info!("recieved flag is true");
-                defmt::info!("recieved flag");
+                defmt::info!("recieved flag, {}", i);
                 break;
             }else{
                 return;

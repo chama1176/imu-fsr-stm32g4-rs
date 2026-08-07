@@ -353,7 +353,9 @@ impl Uart1 {
                 uart.cr1.modify(|_, w| w.fifoen().set_bit());
 
                 // FIFO empty interrupt is generated if RXFNEIE = 1 in the USART_CR1 register
-                uart.cr1.modify(|_, w| w.rxneie().set_bit());
+                // uart.cr1.modify(|_, w| w.rxneie().set_bit());
+
+                uart.cr3.modify(|_, w| w.rxftie().set_bit()); // RXFIFO threshold interrupt enable
                 
                 // Set baud rate
                 uart.brr.modify(|_, w| unsafe { w.bits(0x4BF) }); // 140MHz / 115200
