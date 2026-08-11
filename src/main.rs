@@ -58,7 +58,8 @@ fn DMA1_CH1() {
         Some(perip) => {
             let dma = &perip.DMA1;
             // TCIFで割り込みが入っていることの確認
-            if dma.isr.read().htif1().bit_is_set(){
+            if dma.isr.read().tcif1().bit_is_set(){
+                dma.ifcr.write(|w| w.tcif1().set_bit());
                 // Ok
             } else {
                 // 何かおかしいのでreturn
@@ -89,7 +90,7 @@ fn USART1() {
 
     let mut recieved_flag = false;
     // FIFOの最大サイズ+1までループでチェックする
-    for i in 0..=9 {
+    loop {
         let mut data:u8 = 0;
         let mut return_flag = false;
         free(|cs| match imu_fsr_stm32g4::G_PERIPHERAL.borrow(cs).borrow().as_ref() {
@@ -100,6 +101,9 @@ fn USART1() {
             },
             Some(perip) => {
                 let uart = &perip.USART1;
+                if uart.isr.read().ore().bit_is_set() {
+                    uart.icr.write(|w| w.orecf().set_bit());
+                }
                 if uart.isr.read().rxne().bit_is_clear() { // RXFNE
                     // bufferが空になったらreturn
                     return_flag = true;
@@ -114,7 +118,7 @@ fn USART1() {
         if return_flag {
             if recieved_flag {
                 // defmt::info!("recieved flag is true");
-                defmt::info!("recieved flag, {}", i);
+                // defmt::info!("recieved flag, {}", i);
                 break;
             }else{
                 return;
@@ -128,7 +132,7 @@ fn USART1() {
             },
             Some(app) => {
                 app.enque_uart(data);
-                // defmt::info!("enqueue");
+                // defmt::info!("enqueue 0x{:x}", data);
             }
         });
         if return_flag {
