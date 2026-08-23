@@ -253,7 +253,9 @@ pub struct LocalClock {}
 
 impl dynamixel_f_rs::Clock for LocalClock {
     fn get_current_time(&self) -> Duration {
-        // dummy implementation
+        // // SYSCLK is 140 MHz (the same clock assumed by USART1 BRR).
+        // // DWT is enabled during startup before interrupts are unmasked.
+        // Duration::from_micros((cortex_m::peripheral::DWT::cycle_count() / 140) as u64)
         Duration::from_micros(0)
     }
 }
@@ -276,6 +278,12 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
         self.putc(data);
     }
     fn write_bytes(&mut self, data: &[u8]) {
+        // The protocol library currently exposes Return Delay Time in the
+        // control table but does not wait before calling this method.  Keep
+        // the bus idle for the Dynamixel default (500 us), giving the host
+        // RS-485 adapter time to change from transmit to receive.
+        let start = cortex_m::peripheral::DWT::cycle_count();
+        while cortex_m::peripheral::DWT::cycle_count().wrapping_sub(start) < 70_000 {}
         free(|cs| match G_PERIPHERAL.borrow(cs).borrow().as_ref() {
             None => (),
             Some(perip) => {
@@ -284,8 +292,8 @@ impl dynamixel_f_rs::BufferInterface for Uart1 {
                     while uart.isr.read().txe().bit_is_clear() {} //TXFNF: TXFIFO not full
                     uart.tdr.write(|w| unsafe { w.tdr().bits(*d as u16) });
                     // defmt::info!("write byte 0x{:x}", *d);
-                    // while uart.isr.read().tc().bit_is_set() {}
                 }
+                while uart.isr.read().tc().bit_is_clear() {}
             }
         });
         // for d in data { defmt::info!("w 0x{:x}", d); }

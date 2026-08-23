@@ -67,7 +67,7 @@ where
         // self.update_fsr_task();
         // self.read_imu_task();
         self.read_encoder_task();
-        // self.update_led_task();
+        self.update_led_task();
 
     }
     fn update_led_task(&self) {
@@ -111,7 +111,11 @@ where
         self.dxl.ctd.modify(|_, w| w.model_number().bits(0x04BA)); // 0x04BA: XC330-T181-T
         self.dxl.ctd.modify(|_, w| w.firmware_version().bits(0x30));
         self.dxl.ctd.modify(|_, w| w.baud_rate().bits(0x02)); // 0x02: 115200 bps
-        self.dxl.ctd.modify(|_, w| w.return_delay_time().bits(0x00));
+        // Dynamixel Protocol 2.0: 1 count = 2 us. 250 counts = 500 us.
+        self.dxl.ctd.modify(|_, w| w.return_delay_time().bits(250));
+        // Wizard/SDK が期待する実機XC330の既定値。全Instructionへの
+        // Status Packet応答を表す。
+        self.dxl.ctd.modify(|_, w| w.status_return_level().bits(2));
         self.dxl.ctd.modify(|_, w| w.drive_mode().bits(0x00));
         self.dxl.ctd.modify(|_, w| w.operating_mode().bits(0x00)); // 0x00 current control
         self.dxl.ctd.modify(|_, w| w.moving_threshold().bits(0x0A)); // default

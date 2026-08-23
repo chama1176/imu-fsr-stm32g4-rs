@@ -206,6 +206,8 @@ fn main() -> ! {
     let mut core_perip = stm32g431::CorePeripherals::take().unwrap();
 
     imu_fsr_stm32g4::clock_init(&perip, &mut core_perip);
+    // core_perip.DCB.enable_trace();
+    // core_perip.DWT.enable_cycle_counter();
     imu_fsr_stm32g4::adc2_init(&perip);
 
     let adc_data: [u16; 4] = [7; 4];
